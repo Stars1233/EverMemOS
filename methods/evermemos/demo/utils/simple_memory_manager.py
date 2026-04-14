@@ -80,6 +80,7 @@ class SimpleMemoryManager:
         base_url: str = "http://localhost:1995",
         group_id: str = "default_group",
         scene: str = ScenarioType.SOLO.value,
+        user_id: str = "demo_user",
     ):
         """Initialize the manager
 
@@ -87,11 +88,13 @@ class SimpleMemoryManager:
             base_url: API server address (default: localhost:1995)
             group_id: Group ID (default: default_group)
             scene: Scene type (default: "solo", options: "solo" or "team")
+            user_id: User ID for personal endpoint (default: "demo_user")
         """
         self.base_url = base_url
         self.group_id = group_id
         self.group_name = "Simple Demo Group"
         self.scene = scene
+        self.user_id = user_id
         self.memorize_url = f"{base_url}/api/v1/memories"
         self.retrieve_url = f"{base_url}/api/v1/memories/search"
         self.settings_url = f"{base_url}/api/v1/settings"
@@ -119,29 +122,32 @@ class SimpleMemoryManager:
         )  # Use project's unified time utility (with timezone)
         message_id = f"msg_{self._message_counter}_{int(now.timestamp() * 1000)}"
 
-        # Build message data (completely consistent with test_v1api_search.py format)
-        message_data = {
+        # Build v1 PersonalAddRequest payload
+        role = "user" if sender.lower() == "user" else "assistant"
+        message_item = {
             "message_id": message_id,
-            "create_time": to_iso_format(
-                now
-            ),  # Use project's unified time formatting (with timezone)
-            "sender": sender,
-            "sender_name": sender,  # Consistent with JSON data format
-            "type": "text",  # Message type
+            "sender_id": self.user_id if role == "user" else sender,
+            "sender_name": sender,
+            "role": role,
+            "timestamp": int(now.timestamp() * 1000),
             "content": content,
-            "group_id": self.group_id,
-            "group_name": self.group_name,
-            "scene": self.scene,  # Use configured scene
+        }
+        payload = {
+            "user_id": self.user_id,
+            "messages": [message_item],
         }
 
         try:
             async with httpx.AsyncClient(timeout=500.0) as client:
-                response = await client.post(self.memorize_url, json=message_data)
+                response = await client.post(self.memorize_url, json=payload)
                 response.raise_for_status()
                 result = response.json()
 
-                if result.get("status") == "ok":
-                    count = result.get("result", {}).get("count", 0)
+                # v1 response: {"data": {"status": "...", "count": N, ...}}
+                data = result.get("data", {})
+                status = data.get("status", "")
+                count = data.get("count", 0)
+                if status:
                     if count > 0:
                         print(
                             f"  ✅ Stored: {content[:40]}... (Extracted {count} memories)"
@@ -200,50 +206,47 @@ class SimpleMemoryManager:
             return False
 
     async def search(
-        self, query: str, top_k: int = 3, mode: str = "rrf", show_details: bool = True
+        self, query: str, top_k: int = 3, mode: str = "vector", show_details: bool = True
     ) -> List[Dict[str, Any]]:
         """Search memories
 
         Args:
             query: Query text
             top_k: Number of results to return (default: 3)
-            mode: Retrieval mode (default: "rrf")
-                - "rrf": RRF fusion (recommended)
+            mode:
                 - "keyword": Keyword retrieval (BM25)
                 - "vector": Vector retrieval
                 - "hybrid": Keyword + Vector + Rerank
-                - "rrf": Keyword + Vector + RRF fusion
                 - "agentic": LLM-guided multi-round retrieval
             show_details: Whether to show detailed information (default: True)
 
         Returns:
             List of memories
         """
+        # v1 SearchMemoriesRequest: POST with body {query, method, memory_types, top_k, filters}
         payload = {
             "query": query,
+            "method": mode,
+            "memory_types": ["episodic_memory"],
             "top_k": top_k,
-            "memory_types": "episodic_memory",
-            "retrieve_method": mode,
-            "group_id": self.group_id,
+            "filters": {"user_id": self.user_id},
         }
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(self.retrieve_url, params=payload)
+                response = await client.post(self.retrieve_url, json=payload)
                 response.raise_for_status()
                 result = response.json()
 
-                if result.get("status") == "ok":
-                    # memories is grouped: [{"group_id": [Memory, ...]}, ...]
-                    raw_memories = result.get("result", {}).get("memories", [])
-                    metadata = result.get("result", {}).get("metadata", {})
-                    latency = metadata.get("total_latency_ms", 0)
-
-                    # Flatten grouped memories to flat list
+                # v1 response: {"data": {"episodes": [...], "profiles": [...], "raw_messages": [...], "agent_memory": ...}}
+                data = result.get("data", {})
+                if data:
+                    # Aggregate across memory_type buckets (we only requested episodic_memory here)
                     memories = []
-                    for group_dict in raw_memories:
-                        for group_id, mem_list in group_dict.items():
-                            memories.extend(mem_list)
+                    for key in ("episodes", "profiles", "raw_messages"):
+                        memories.extend(data.get(key) or [])
+                    metadata = data.get("metadata", {}) or {}
+                    latency = metadata.get("total_latency_ms", 0)
 
                     if show_details:
                         print(
