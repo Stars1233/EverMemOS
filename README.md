@@ -1,6 +1,6 @@
 # EvoAgentBench
 
-<!-- [![Website](https://img.shields.io/badge/Website-EvoAgentBench-blue)](https://xxx) -->
+[![Website](https://img.shields.io/badge/Website-EvoAgentBench-blue)](https://evermind-ai.github.io/EvoAgentBench/)
 <!-- [![arXiv](https://img.shields.io/badge/arXiv-xxxx.xxxxx-b31b1b.svg)](https://arxiv.org/abs/xxxx.xxxxx) -->
 [![Dataset](https://img.shields.io/badge/HuggingFace-Dataset-yellow)](https://huggingface.co/datasets/EverMind-AI/EvoAgentBench)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
@@ -16,7 +16,7 @@ EvoAgentBench enables standardized comparison of agent self-evolution methods �
 - **Self-evolution comparison** — standardized train/extract/evaluate protocol for skill-based methods
 
 <p align="center">
-  <img src="assets/res1.png" width="800" alt="EvoAgentBench Results">
+  <img src="assets/res-0414.png" width="800" alt="EvoAgentBench Results">
 </p>
 
 *Partial evaluation results: pass rate with and without skill injection across domains and agents. "Δ gain" shows absolute improvement from self-evolution methods. More results coming soon.*

@@ -139,6 +139,16 @@ def load_session_messages(path: Path) -> list:
                     expanded.append({"role": "assistant", "content": m["content"]})
         messages = expanded
 
+    # Filter out ghost messages (empty content AND no tool_calls).
+    # In multi-turn sessions, some assistant messages had only reasoning which
+    # got stripped above, leaving empty content. The server rejects these
+    # (422: "messages[].content must not be empty").
+    messages = [
+        m for m in messages
+        if (m.get("content") or "").strip()
+           or (m["role"] == "assistant" and m.get("tool_calls"))
+    ]
+
     return messages
 
 
@@ -305,13 +315,6 @@ async def send_session_v1(client, messages, session_id, user_id, base_url):
     resp.raise_for_status()
 
 
-async def flush_clustering(client, user_id, base_url) -> dict:
-    resp = await client.post(f"{base_url}/api/v1/memories/agent/flush-clustering",
-                             json={"user_id": user_id})
-    resp.raise_for_status()
-    return resp.json().get("data", {})
-
-
 async def fetch_skills_v1(client, user_id, base_url) -> list[dict]:
     all_skills, page = [], 1
     while True:
@@ -337,9 +340,9 @@ def _skills_fingerprint(skills: list[dict]) -> str:
 
 
 async def wait_for_skills_stable(client, user_id, base_url,
-                                  poll_interval=120, max_wait=1800) -> list[dict]:
+                                  poll_interval=120, max_wait=0) -> list[dict]:
     prev_fp, elapsed = None, 0
-    while elapsed < max_wait:
+    while max_wait <= 0 or elapsed < max_wait:
         skills = await fetch_skills_v1(client, user_id, base_url)
         fp = _skills_fingerprint(skills)
         print(f"    Poll: {len(skills)} skills, fp={fp[:8]}, elapsed={elapsed}s")
@@ -505,12 +508,15 @@ async def main():
 
         print(f"\n  Phase 1: Sending {len(all_sessions)} sessions...")
         sem = asyncio.Semaphore(args.parallel)
-        sent = skipped = 0
+        sent = skipped = empty = failed = 0
+        failures = []
 
         async def _send_one(tid, session_path):
-            nonlocal sent, skipped
+            nonlocal sent, skipped, empty, failed
             messages = load_session_messages(session_path)
             if not messages:
+                empty += 1
+                print(f"    [empty] {tid}: no messages loaded")
                 return
 
             feedback = load_task_feedback(job_dir, tid)
@@ -521,8 +527,14 @@ async def main():
             if args.feedback:
                 messages.append({"role": "assistant", "content": _format_feedback(feedback)})
 
-            async with sem:
-                await send_session_v1(client, messages, f"session_{tid}", user_id, api_url)
+            try:
+                async with sem:
+                    await send_session_v1(client, messages, f"session_{tid}", user_id, api_url)
+            except Exception as e:
+                failed += 1
+                failures.append((tid, type(e).__name__, str(e)[:200]))
+                print(f"    [FAIL] {tid}: {type(e).__name__}: {str(e)[:200]}")
+                return
             sent += 1
             if sent % 20 == 0:
                 print(f"    Sent {sent}/{len(all_sessions)}")
@@ -530,13 +542,18 @@ async def main():
         await asyncio.gather(*[_send_one(tid, p) for tid, p in all_sessions.items()],
                              return_exceptions=True)
         print(f"    Sent {sent}/{len(all_sessions)}"
-              f"{f', skipped {skipped}' if skipped else ''}")
+              f"{f', skipped {skipped}' if skipped else ''}"
+              f"{f', empty {empty}' if empty else ''}"
+              f"{f', failed {failed}' if failed else ''}")
+        if failures:
+            print(f"\n  Failed sessions ({len(failures)}):")
+            for tid, etype, emsg in failures[:20]:
+                print(f"    {tid}: {etype}: {emsg}")
 
-        print(f"\n  Phase 2: Triggering clustering...")
-        result = await flush_clustering(client, user_id, api_url)
-        print(f"    Clusters: {len(result.get('cluster_ids', []))}")
+        # Note: per-session flush already triggers boundary detection + clustering
+        # + skill extraction (async). No separate /agent/flush-clustering call needed.
 
-        print(f"\n  Phase 3: Waiting for skills (poll every {args.poll_interval}s)...")
+        print(f"\n  Phase 2: Waiting for skills (poll every {args.poll_interval}s)...")
         skills = await wait_for_skills_stable(client, user_id, api_url,
                                                poll_interval=args.poll_interval)
         print(f"    Final: {len(skills)} skills")

@@ -113,7 +113,7 @@ def load_image_from_tar(tar_file: str | Path, retries: int = 2):
         with open(tar_file, "rb") as f:
             r = subprocess.run(
                 [cfg["docker"], "load"], stdin=f,
-                capture_output=True, timeout=300,
+                capture_output=True, timeout=1200,
             )
         if r.returncode == 0:
             return
@@ -321,7 +321,7 @@ def setup_container_tmux(container_name: str):
 
     proxy_url = os.environ.get("http_proxy") or os.environ.get("HTTP_PROXY", "")
     setup_cmd = f"sh /tmp/tmux-setup.sh {proxy_url}" if proxy_url else "sh /tmp/tmux-setup.sh"
-    r = docker_exec(container_name, setup_cmd, timeout=180)
+    r = docker_exec(container_name, setup_cmd, timeout=600)
     if r.returncode != 0:
         raise RuntimeError(f"Container tmux setup failed: {r.stderr or r.stdout}")
 

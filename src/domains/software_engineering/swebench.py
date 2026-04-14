@@ -63,7 +63,7 @@ def _instance_id_to_tar(instance_id: str, tar_dir: str) -> Path | None:
 def _get_docker_client():
     """Get a cached Docker client."""
     if not hasattr(_get_docker_client, "_client"):
-        _get_docker_client._client = docker.from_env()
+        _get_docker_client._client = docker.from_env(timeout=600)
     return _get_docker_client._client
 
 
@@ -273,7 +273,10 @@ class SWEBenchAdapter(DomainAdapter):
     def setup(self, task: dict, agent_name: str, trial: int) -> dict:
         instance_id = task["name"]
         image = self._image_name(instance_id)
-        container_name = f"swebench-{agent_name}-{instance_id}-t{trial}"
+        job_tag = task.get("_job_dir", "")
+        if job_tag:
+            job_tag = Path(job_tag).name
+        container_name = f"swebench-{job_tag}-{instance_id}-t{trial}" if job_tag else f"swebench-{agent_name}-{instance_id}-t{trial}"
 
         # Start container via Docker SDK
         client = _get_docker_client()
