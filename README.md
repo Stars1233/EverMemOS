@@ -7,7 +7,7 @@
   <a href="https://arxiv.org/abs/2604.08256"><img src="https://img.shields.io/badge/arXiv-HyperMem-F5C842?labelColor=gray&style=flat-square&logo=arxiv&logoColor=white" alt="arXiv: HyperMem"></a>
   <a href="https://arxiv.org/abs/2602.01313"><img src="https://img.shields.io/badge/arXiv-EverMemBench-F5C842?labelColor=gray&style=flat-square&logo=arxiv&logoColor=white" alt="arXiv: EverMemBench"></a>
   <a href="https://github.com/EverMind-AI/MSA"><img src="https://img.shields.io/badge/arXiv-Memory%20Sparse%20Attention-F5C842?labelColor=gray&style=flat-square&logo=arxiv&logoColor=white" alt="arXiv: Memory Sparse Attention"></a>
-  <!-- <a href="https://huggingface.co/datasets/EverMind-AI/EverMemBench-Dynamic"><img src="https://img.shields.io/badge/🤗_HuggingFace-EverMemBench--Dynamic-F5C842?labelColor=gray&style=flat-square" alt="HuggingFace: EverMemBench-Dynamic"></a> -->
+  <a href="https://huggingface.co/datasets/EverMind-AI/EverMemBench-Dynamic"><img src="https://img.shields.io/badge/🤗_HuggingFace-EverMemBench--Dynamic-F5C842?labelColor=gray&style=flat-square" alt="HuggingFace: EverMemBench-Dynamic"></a>
   <a href="https://discord.gg/gYep5nQRZJ"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Fv10%2Finvites%2FgYep5nQRZJ%3Fwith_counts%3Dtrue&query=%24.approximate_presence_count&suffix=%20online&label=Discord&color=404EED&labelColor=gray&style=flat-square&logo=discord&logoColor=white" alt="Discord"></a>
   <a href="https://github.com/EverMind-AI/EverOS/discussions/67"><img src="https://img.shields.io/badge/WeChat-EverMind-07C160?labelColor=gray&style=flat-square&logo=wechat&logoColor=white" alt="WeChat"></a>
 </p>
@@ -18,7 +18,7 @@
 
 <br>
 
-<details open>
+<!-- <details open>
 <summary><kbd>Table of Contents</kbd></summary>
 
 <br>
@@ -35,11 +35,13 @@
 
 <br>
 
-</details>
+</details> -->
 
-## Project Structure
+## Project Overview
 
-EverOS is built around two pillars — **Methods** give agents memory and evolution capabilities, and **Benchmarks** objectively measure whether those capabilities actually work.
+**EverOS** is a collection of long-term memory **methods**, **benchmarks**, and **usecases** for building self-evolving agents.
+
+### EverOS Structure
 
 ```
 EverOS/
@@ -47,33 +49,12 @@ EverOS/
 │   ├── EverMemBench/        # Memory quality evaluation
 │   └── EvoAgentBench/       # Agent self-evolution evaluation
 └── methods/
-    ├── everos/              # Long-term memory operating system
+    ├── EverCore/              # Long-term memory operating system
     └── HyperMem/            # Hypergraph memory architecture
+└── usecases/                # Example applications
 ```
 
-<br>
 
-<!-- ### EverMind Ecosystem
-
-Large language models are evolving from single-turn chatbots to long-lived interactive agents. But when an agent needs to stay coherent across weeks of conversation, it hits a hard ceiling: finite context windows and fragmented memory.
-
-Expanding the context window is not the answer — ultra-long contexts are expensive and degrade with distance. The future of long-term agents depends on **structured memory organization**.
-
-EverOS is a memory operating system that transforms unlimited interaction streams into a structured "digital brain" through a three-stage memory lifecycle: **episodic trace formation**, **semantic consolidation**, and **reconstructive recall** — enabling agents to continuously convert raw interactions into structured, evolving knowledge. -->
-
-<!-- <div align="center">
-
-Benchmark Stats
-
-<table>
-  <tr>
-    <td align="center"><strong>93.05%</strong><br><sub>LoCoMo</sub></td>
-    <td align="center"><strong>83.00%</strong><br><sub>LongMemEval-S</sub></td>
-    <td align="center"><strong>+40%</strong><br><sub>EvoAgent GDPVAL</sub></td>
-  </tr>
-</table>
-
-</div> -->
 
 ### Methods
 
@@ -81,18 +62,19 @@ Benchmark Stats
 <tr>
 <td width="50%">
 
-![banner-gif](https://github.com/user-attachments/assets/623862d8-1bc8-48d7-8248-a9ea4edf61e3)
+![banner-gif](https://github.com/user-attachments/assets/55043376-d338-4844-b0bb-3c78839937b1)
 
-#### EverOS
+
+#### EverCore
 
 A self-organizing memory operating system inspired by biological imprinting. Extracts, structures, and retrieves long-term knowledge from conversations — enabling agents to remember, understand, and continuously evolve.
 
-[Paper][arxiv-everos-link] · [Docs](methods/everos/)
+[Paper][arxiv-everos-link] · [Docs](methods/evermemos/)
 
 </td>
 <td width="50%">
 
-![banner-gif](https://github.com/user-attachments/assets/2289a47d-1516-4a15-85bd-1320bc6f6955)
+![banner-gif](https://github.com/user-attachments/assets/b68d354a-3de6-4dea-9656-6113a0a12786)
 
 #### HyperMem
 
@@ -142,7 +124,7 @@ Agent self-evolution evaluation — not static snapshots, but longitudinal growt
 
 </div>
 
-## Key Results
+<!-- ## Key Results
 
 ### Memory Performance
 
@@ -170,7 +152,7 @@ Agent self-evolution evaluation — not static snapshots, but longitudinal growt
 
 [![][back-to-top]][readme-top]
 
-</div>
+</div> -->
 
 ## Use Cases
 
@@ -256,16 +238,16 @@ cd EverOS
 
 Then navigate to the component you need:
 
-| | Use Case | Entry Point |
+| | Component | Entry Point |
 | :-- | :--- | :--- |
-| **everos** | Build agents with long-term memory | [methods/everos/](methods/everos/) |
+| **EverCore** | Build agents with long-term memory | [methods/everos/](methods/everos/) |
 | **HyperMem** | Use the hypergraph memory architecture | [methods/HyperMem/](methods/HyperMem/) |
 | **EverMemBench** | Evaluate memory system quality | [benchmarks/EverMemBench/](benchmarks/EverMemBench/) |
 | **EvoAgentBench** | Measure agent self-evolution | [benchmarks/EvoAgentBench/](benchmarks/EvoAgentBench/) |
 
 > Each component has its own installation guide, dependency configuration, and usage examples.
 
-### everos Quick Start
+### EverCore Quick Start
 
 ```bash
 cd methods/everos
@@ -332,7 +314,7 @@ for memory_group in result.get("memories", []):
 
 </div>
 
-## Demo
+<!-- ## Demo
 
 ### Run the Demo
 
@@ -363,7 +345,7 @@ See the [Demo Guide][interactive-demos] for details.
 
 [![][back-to-top]][readme-top]
 
-</div>
+</div> -->
 
 ## Evaluation & Benchmarking
 
@@ -404,7 +386,7 @@ cat evaluation/results/locomo-everos/report.txt
 
 </div>
 
-## Documentation
+<!-- ## Documentation
 
 | Guide | Description |
 | ----- | ----------- |
@@ -428,9 +410,9 @@ cat evaluation/results/locomo-everos/report.txt
 
 [![][back-to-top]][readme-top]
 
-</div>
+</div> -->
 
-## GitHub Codespaces
+<!-- ## GitHub Codespaces
 
 EverOS supports [GitHub Codespaces][codespaces-link] for cloud-based development — no Docker setup or local environment configuration needed.
 
@@ -460,7 +442,7 @@ All infrastructure services (MongoDB, Elasticsearch, Milvus, Redis) start automa
 
 [![][back-to-top]][readme-top]
 
-</div>
+</div> -->
 
 
 ## Citation
@@ -499,7 +481,7 @@ If EverOS helps your research, please cite:
 
 ## Contributing
 
-Browse [Issues][issues-link] to find your entry point, join [Discussions][discussions] to share ideas, or connect with maintainers — [@elliotchen200][elliot-x-link] on X and [@cyfyifanchen][cyfyifanchen-link] on GitHub.
+Browse [Issues][issues-link] to find your entry point or connect with maintainers — [@elliotchen200][elliot-x-link] on X and [@cyfyifanchen][cyfyifanchen-link] on GitHub.
 
 ![divider][divider-light]
 ![divider][divider-dark]
@@ -508,21 +490,17 @@ Browse [Issues][issues-link] to find your entry point, join [Discussions][discus
 
 [![EverOS Contributors][contributors-image]][contributors]
 
-### Contribution Guidelines
+<!-- ### Contribution Guidelines
 
-Read our [Contribution Guidelines][contributing-doc] for code standards and Git workflow.
+Read our [Contribution Guidelines][contributing-doc] for code standards and Git workflow. -->
+
+![divider][divider-light]
+![divider][divider-dark]
+
 
 ### License
 
 [Apache 2.0][license]
-
----
-
-<div align="center">
-
-<a href="https://evermind.ai"><strong>EverMind</strong></a> · Keep in Mind. Evolve over Time.
-
-</div>
 
 <!-- Navigation -->
 [readme-top]: #readme-top
@@ -539,7 +517,7 @@ Read our [Contribution Guidelines][contributing-doc] for code standards and Git 
 [usecase-got-image]: https://github.com/user-attachments/assets/d1efe507-4eb7-4867-8996-457497333449
 [usecase-claude-image]: https://github.com/user-attachments/assets/b40b2241-b0e6-4fc9-9a35-92139f3a2d81
 [usecase-graph-image]: https://github.com/user-attachments/assets/6586e647-dd5f-4f9f-9b26-66f930e8241c
-[benchmark-image]: figs/benchmark_2.png
+[benchmark-image]: methods/evermemos/figs/benchmark_2.png
 
 <!-- Badges -->
 [back-to-top]: https://img.shields.io/badge/-Back_to_top-gray?style=flat-square
