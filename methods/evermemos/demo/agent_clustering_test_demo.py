@@ -649,8 +649,8 @@ async def main():
     # Wait for extraction + clustering
     print(f"\nStep {len(trajectories) + 2}: Wait for extraction + clustering pipeline")
     print_separator()
-    print("  Waiting 40 seconds for MemCell + AgentCase + clustering + AgentSkill...")
-    await asyncio.sleep(40)
+    print("  Waiting 60 seconds for MemCell + AgentCase + clustering + AgentSkill...")
+    await asyncio.sleep(60)
 
     # Fetch and print all extracted memories
     print(f"\nStep {len(trajectories) + 3}: Fetch all extracted memories")

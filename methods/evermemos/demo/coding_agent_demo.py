@@ -635,8 +635,8 @@ async def main():
     # Step 3: Wait for first extraction to complete
     print("\nStep 3: Wait for first extraction pipeline")
     print_separator()
-    print("  Waiting 20 seconds for first AgentCase extraction...")
-    await asyncio.sleep(20)
+    print("  Waiting 60 seconds for first AgentCase extraction...")
+    await asyncio.sleep(60)
 
     # Step 4: Send second trajectory (rate limiting - different feature, same pattern)
     print("\nStep 4: Send second trajectory (rate limiting middleware)")
@@ -656,8 +656,8 @@ async def main():
     # Step 5: Wait for second extraction + skill extraction
     print("\nStep 5: Wait for second extraction pipeline + AgentSkill extraction")
     print_separator()
-    print("  Waiting 30 seconds for AgentCase + AgentSkill extraction...")
-    await asyncio.sleep(30)
+    print("  Waiting 60 seconds for AgentCase + AgentSkill extraction...")
+    await asyncio.sleep(60)
 
     # Step 6: Fetch and print all extracted memories
     print("\nStep 6: Fetch all extracted memories")

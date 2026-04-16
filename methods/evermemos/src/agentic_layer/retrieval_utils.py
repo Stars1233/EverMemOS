@@ -141,6 +141,60 @@ def reciprocal_rank_fusion(
     return fused_results
 
 
+def vector_anchored_fusion(
+    vector_results: List[Tuple[str, float]],
+    keyword_results: List[Tuple[str, float]],
+    saturation_k: float = 5.0,
+    alpha: float = 0.7,
+) -> List[Tuple[str, float]]:
+    """Fuse vector and keyword search results with saturated BM25 weighting.
+
+    BM25 raw scores are compressed via a saturation function
+    ``sat = raw / (raw + saturation_k)`` which maps them to [0, 1) while
+    preserving discrimination (e.g. BM25=0.4 -> 0.07, BM25=10 -> 0.67).
+
+    The final score is a weighted sum ``alpha * vec + (1-alpha) * sat_bm25``.
+
+    For docs appearing in only one result set, the missing side defaults
+    to the minimum score of that set ("not recalled" != "not relevant").
+
+    Args:
+        vector_results: Vector search results as [(doc_id, score), ...].
+        keyword_results: Keyword search results as [(doc_id, bm25_score), ...].
+        saturation_k: Saturation constant for BM25 normalization.
+            Controls the inflection point -- scores around this value map
+            to ~0.5.  Default 5.0 works well for typical ES BM25 ranges.
+        alpha: Vector weight in the fusion.  Higher values trust vector
+            more; lower values trust BM25 more.
+
+    Returns:
+        Fused results [(doc_id, score), ...] sorted by score descending.
+    """
+    vec_score_map: Dict[str, float] = {doc_id: s for doc_id, s in vector_results}
+
+    # Saturate BM25 scores into [0, 1)
+    kw_sat_map: Dict[str, float] = {}
+    for doc_id, raw in keyword_results:
+        kw_sat_map[doc_id] = raw / (raw + saturation_k) if raw > 0 else 0.0
+
+    # Floor defaults for docs missing from one path.
+    # "Not recalled" != "not relevant" -- assume at least as good as the
+    # weakest doc that *was* recalled by that path.
+    vec_floor = min(vec_score_map.values()) if vec_score_map else 0.0
+    kw_floor = min(kw_sat_map.values()) if kw_sat_map else 0.0
+
+    # Weighted sum fusion
+    all_ids = set(vec_score_map.keys()) | set(kw_sat_map.keys())
+    scored: List[Tuple[str, float]] = []
+    for doc_id in all_ids:
+        vs = vec_score_map.get(doc_id, vec_floor)
+        ks = kw_sat_map.get(doc_id, kw_floor)
+        scored.append((doc_id, alpha * vs + (1.0 - alpha) * ks))
+
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored
+
+
 async def lightweight_retrieval(
     query: str,
     candidates,

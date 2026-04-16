@@ -61,6 +61,9 @@ MAX_TOOL_OUTPUT_TOKENS = 1000
 MAX_TOOL_ARGS_TOKENS = 800
 MAX_ASSISTANT_RESPONSE_TOKENS = 3000
 
+# Hard cap for task_intent token length (truncated after LLM extraction)
+MAX_TASK_INTENT_TOKENS = 300
+
 
 @dataclass
 class AgentCaseExtractRequest(MemoryExtractRequest):
@@ -148,7 +151,10 @@ class AgentCaseExtractor(MemoryExtractor):
 
     @classmethod
     def _truncate_text(cls, text: str, max_tokens: int, head_ratio: float = 0.7) -> str:
-        """Truncate text to max_tokens, keeping head and tail with a marker."""
+        """Truncate text to max_tokens, keeping head and tail with a marker.
+
+        When head_ratio=1.0, only the head is kept with "..." appended.
+        """
         if not text or not isinstance(text, str):
             return text
         tokenizer = cls._get_tokenizer()
@@ -158,7 +164,9 @@ class AgentCaseExtractor(MemoryExtractor):
         head_count = int(max_tokens * head_ratio)
         tail_count = max_tokens - head_count
         head_text = tokenizer.decode(tokens[:head_count])
-        tail_text = tokenizer.decode(tokens[-tail_count:]) if tail_count > 0 else ""
+        if tail_count <= 0:
+            return head_text.rstrip() + "..."
+        tail_text = tokenizer.decode(tokens[-tail_count:])
         trimmed = len(tokens) - max_tokens
         return f"{head_text}\n[... trimmed {trimmed} tokens ...]\n{tail_text}"
 
@@ -692,6 +700,18 @@ class AgentCaseExtractor(MemoryExtractor):
                 )
                 return None
 
+            # Truncate task_intent to hard token cap (head only)
+            original_intent = exp_dict.get("task_intent", "")
+            raw_intent = self._truncate_text(
+                original_intent, MAX_TASK_INTENT_TOKENS, head_ratio=1.0
+            )
+            if raw_intent != original_intent:
+                logger.info(
+                    f"[AgentCaseExtractor] Truncated task_intent to "
+                    f"{MAX_TASK_INTENT_TOKENS} tokens, "
+                    f"original: {original_intent}"
+                )
+
             # Build AgentCase
             experience = AgentCase(
                 id=generate_object_id_str(),
@@ -701,7 +721,7 @@ class AgentCaseExtractor(MemoryExtractor):
                 group_id=request.group_id,
                 participants=memcell.participants,
                 sender_ids=memcell.sender_ids,
-                task_intent=exp_dict.get("task_intent", ""),
+                task_intent=raw_intent,
                 approach=exp_dict.get("approach", ""),
                 quality_score=self._clamp_quality_score(
                     exp_dict.get("quality_score", 0.5)

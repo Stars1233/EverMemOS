@@ -20,8 +20,6 @@ import os
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from bson import ObjectId
-from bson.errors import InvalidId
 
 from core.di import service, get_bean
 from api_specs.dtos.memory import SearchAtomicFactItem
@@ -59,12 +57,9 @@ from infra_layer.adapters.out.search.repository.agent_skill_milvus_repository im
     AgentSkillMilvusRepository,
 )
 
-# MongoDB documents for original data fetching
+# MongoDB documents for type annotations only — DB access goes through repos
 from infra_layer.adapters.out.persistence.document.memory.episodic_memory import (
     EpisodicMemory,
-)
-from infra_layer.adapters.out.persistence.document.memory.user_profile import (
-    UserProfile,
 )
 from infra_layer.adapters.out.persistence.document.memory.agent_case import (
     AgentCaseRecord,
@@ -73,8 +68,20 @@ from infra_layer.adapters.out.persistence.document.memory.agent_skill import (
     AgentSkillRecord,
 )
 
+# Raw repositories for MongoDB persistence
+from infra_layer.adapters.out.persistence.repository.episodic_memory_raw_repository import (
+    EpisodicMemoryRawRepository,
+)
+from infra_layer.adapters.out.persistence.repository.agent_case_raw_repository import (
+    AgentCaseRawRepository,
+)
+from infra_layer.adapters.out.persistence.repository.agent_skill_raw_repository import (
+    AgentSkillRawRepository,
+)
+
 # Rerank service for hybrid method
 from agentic_layer.rerank_service import get_rerank_service
+from agentic_layer.retrieval_utils import vector_anchored_fusion
 
 # MemoryManager for agentic retrieval
 from agentic_layer.memory_manager import MemoryManager
@@ -95,12 +102,30 @@ from biz_layer.memorize_config import DEFAULT_MEMORIZE_CONFIG
 
 # Constants
 from core.oxm.constants import MAGIC_ALL
+from biz_layer.retrieve_constants import AGENT_MEMORY_MILVUS_RADIUS
 
 logger = logging.getLogger(__name__)
 
 # Constants
 DEFAULT_TOP_K = 10
 MAX_RECALL_MULTIPLIER = 2
+HYBRID_TOP_K_THRESHOLD = 5
+
+
+def _compute_recall_limit(top_k: int, apply_multiplier: bool) -> int:
+    """Compute the recall limit for keyword / vector searches.
+
+    Args:
+        top_k: Requested result count (0 means use DEFAULT_TOP_K).
+        apply_multiplier: When True, multiply by MAX_RECALL_MULTIPLIER
+            to over-recall for better rerank quality.  Set to False
+            when top_k is large enough that the multiplier only adds
+            rerank latency without meaningful quality gain.
+    """
+    effective_top_k = top_k if top_k > 0 else DEFAULT_TOP_K
+    if apply_multiplier:
+        return effective_top_k * MAX_RECALL_MULTIPLIER
+    return effective_top_k
 
 
 @service(name="search_memory_service", primary=True)
@@ -125,6 +150,11 @@ class SearchMemoryService:
         self.agent_skill_es_repo = AgentSkillEsRepository()
         self.agent_case_milvus_repo = AgentCaseMilvusRepository()
         self.agent_skill_milvus_repo = AgentSkillMilvusRepository()
+
+        # MongoDB raw repositories (for fetching full docs by id)
+        self.episodic_raw_repo = EpisodicMemoryRawRepository()
+        self.agent_case_raw_repo = AgentCaseRawRepository()
+        self.agent_skill_raw_repo = AgentSkillRawRepository()
 
         # MemoryManager for agentic retrieval
         self.memory_manager = MemoryManager()
@@ -201,45 +231,8 @@ class SearchMemoryService:
         if not episode_ids:
             return {}
 
-        id_filter = self._build_mongo_id_filter(episode_ids)
-        if not id_filter:
-            return {}
-
-        episodes_data = await EpisodicMemory.find_many(id_filter).to_list()
-
+        episodes_data = await self.episodic_raw_repo.find_by_ids(episode_ids)
         return {str(ep.id): ep for ep in episodes_data}
-
-    def _build_mongo_id_filter(self, ids: List[str]) -> Optional[Dict[str, Any]]:
-        """Build robust MongoDB _id filter from mixed string IDs.
-
-        Most IDs are ObjectId-like strings in search results; convert them first.
-        Keep raw string IDs as fallback for compatibility with non-ObjectId datasets.
-        """
-        if not ids:
-            return None
-
-        object_ids: List[ObjectId] = []
-        raw_ids: List[str] = []
-
-        for item_id in ids:
-            if not item_id:
-                continue
-            try:
-                object_ids.append(ObjectId(item_id))
-            except (InvalidId, TypeError):
-                raw_ids.append(item_id)
-
-        clauses: List[Dict[str, Any]] = []
-        if object_ids:
-            clauses.append({"_id": {"$in": object_ids}})
-        if raw_ids:
-            clauses.append({"_id": {"$in": raw_ids}})
-
-        if not clauses:
-            return None
-        if len(clauses) == 1:
-            return clauses[0]
-        return {"$or": clauses}
 
     def _extract_filter_values(self, filters: Dict[str, Any]) -> Dict[str, Any]:
         """Extract filter values from filters dict.
@@ -807,16 +800,24 @@ class SearchMemoryService:
                 # Rerank
                 stage_start = time.perf_counter()
                 rerank_service = get_rerank_service()
+                rerank_top_k = top_k if top_k > 0 else DEFAULT_TOP_K
                 reranked_hits = await rerank_service.rerank_memories(
-                    query=query,
-                    hits=merged_hits,
-                    top_k=top_k if top_k > 0 else DEFAULT_TOP_K,
+                    query=query, hits=merged_hits, top_k=rerank_top_k
                 )
+                rerank_ms = (time.perf_counter() - stage_start) * 1000
                 record_retrieve_stage(
                     retrieve_method=method,
                     stage='rerank',
                     memory_type=memory_type,
-                    duration_seconds=time.perf_counter() - stage_start,
+                    duration_seconds=rerank_ms / 1000,
+                )
+                logger.info(
+                    "[RERANK_DIAG] memory_type=%s in=%d out=%d top_k=%d took=%.1fms",
+                    memory_type,
+                    len(merged_hits),
+                    len(reranked_hits),
+                    rerank_top_k,
+                    rerank_ms,
                 )
                 # Batch fetch from MongoDB for complete display fields
                 episode_ids = [
@@ -867,9 +868,7 @@ class SearchMemoryService:
                 # Agentic: LLM-guided multi-round retrieval
                 with timed("agentic_retrieval"):
                     results = await self._search_agentic_episodic_memory(
-                        query=query,
-                        filter_values=filter_values,
-                        top_k=top_k,
+                        query=query, filter_values=filter_values, top_k=top_k
                     )
 
         return results
@@ -1173,13 +1172,11 @@ class SearchMemoryService:
         # Collect IDs
         episode_ids = [e.id for e in episodes if e.id]
 
-        # Fetch from MongoDB
+        # Fetch from MongoDB via repository
         if episode_ids:
-            id_filter = self._build_mongo_id_filter(episode_ids)
-            if id_filter:
-                episodes_data = await EpisodicMemory.find_many(id_filter).to_list()
-                for ep in episodes_data:
-                    original_data["episodes"][str(ep.id)] = ep.model_dump(mode="json")
+            episodes_data = await self.episodic_raw_repo.find_by_ids(episode_ids)
+            for ep in episodes_data:
+                original_data["episodes"][str(ep.id)] = ep.model_dump(mode="json")
 
         # Profile search returns item-level results (Milvus entity IDs),
         # not MongoDB document IDs, so original_data backfill is skipped.
@@ -1196,10 +1193,7 @@ class SearchMemoryService:
         """Batch fetch AgentCaseRecords from MongoDB by IDs."""
         if not case_ids:
             return {}
-        id_filter = self._build_mongo_id_filter(case_ids)
-        if not id_filter:
-            return {}
-        docs = await AgentCaseRecord.find_many(id_filter).to_list()
+        docs = await self.agent_case_raw_repo.get_by_ids(case_ids)
         return {str(d.id): d for d in docs}
 
     @staticmethod
@@ -1235,11 +1229,7 @@ class SearchMemoryService:
     ) -> List[SearchAgentCaseItem]:
         """Search agent cases using keyword / vector / hybrid / rrf."""
         results: List[SearchAgentCaseItem] = []
-        limit = (
-            top_k * MAX_RECALL_MULTIPLIER
-            if top_k > 0
-            else DEFAULT_TOP_K * MAX_RECALL_MULTIPLIER
-        )
+        limit = _compute_recall_limit(top_k, apply_multiplier=True)
 
         agent_case_mt = MemoryType.AGENT_CASE.value
         with timed("agent_case_search"):
@@ -1301,7 +1291,10 @@ class SearchMemoryService:
                         )
 
             elif method == "hybrid" and query_vector:
-                # Hybrid: keyword + vector + rerank
+                # Hybrid: keyword + vector, score fusion (no reranker)
+                recall_limit = _compute_recall_limit(
+                    top_k, apply_multiplier=0 < top_k <= HYBRID_TOP_K_THRESHOLD
+                )
                 stage_start = time.perf_counter()
                 keyword_hits = await self.agent_case_es_repo.multi_search(
                     query=query_words,
@@ -1309,7 +1302,7 @@ class SearchMemoryService:
                     group_ids=filter_values["group_ids"],
                     session_id=filter_values["session_id"],
                     date_range=date_range,
-                    size=limit,
+                    size=recall_limit,
                 )
                 record_retrieve_stage(
                     retrieve_method=method,
@@ -1325,8 +1318,8 @@ class SearchMemoryService:
                     session_id=filter_values["session_id"],
                     start_time=filter_values["start_time"],
                     end_time=filter_values["end_time"],
-                    limit=limit,
-                    radius=radius,
+                    limit=recall_limit,
+                    radius=max(AGENT_MEMORY_MILVUS_RADIUS, radius or 0.0),
                 )
                 record_retrieve_stage(
                     retrieve_method=method,
@@ -1334,46 +1327,27 @@ class SearchMemoryService:
                     memory_type=agent_case_mt,
                     duration_seconds=time.perf_counter() - stage_start,
                 )
-                # Tag memory_type for rerank text extraction
-                for h in keyword_hits:
-                    h["memory_type"] = MemoryType.AGENT_CASE.value
-                for h in vector_results:
-                    h["memory_type"] = MemoryType.AGENT_CASE.value
-                # Merge and deduplicate
-                seen_ids = {self._extract_hit_id(h) for h in keyword_hits} - {None}
-                merged_hits = keyword_hits + [
-                    h for h in vector_results if self._extract_hit_id(h) not in seen_ids
+                # Fuse scores: normalize BM25 into vector score range
+                vec_pairs = [
+                    (self._extract_hit_id(vr), vr.get("score", 0.0))
+                    for vr in vector_results
+                    if self._extract_hit_id(vr)
                 ]
-                # Rerank
-                stage_start = time.perf_counter()
-                rerank_service = get_rerank_service()
-                reranked_hits = await rerank_service.rerank_memories(
-                    query=query,
-                    hits=merged_hits,
-                    top_k=top_k if top_k > 0 else DEFAULT_TOP_K,
-                )
-                record_retrieve_stage(
-                    retrieve_method=method,
-                    stage='rerank',
-                    memory_type=agent_case_mt,
-                    duration_seconds=time.perf_counter() - stage_start,
-                )
-                # Backfill from MongoDB
-                case_ids = [
-                    self._extract_hit_id(h)
-                    for h in reranked_hits
+                kw_pairs = [
+                    (self._extract_hit_id(h), h.get("_score", 0.0))
+                    for h in keyword_hits
                     if self._extract_hit_id(h)
                 ]
+                scored = vector_anchored_fusion(vec_pairs, kw_pairs)
+                final_top = top_k if top_k > 0 else DEFAULT_TOP_K
+                scored = scored[:final_top]
+                # Backfill from MongoDB
+                case_ids = [doc_id for doc_id, _ in scored]
                 cases_dict = await self._fetch_agent_cases_by_ids(case_ids)
-                for hit in reranked_hits:
-                    case_id = self._extract_hit_id(hit)
-                    doc = cases_dict.get(case_id)
+                for doc_id, score in scored:
+                    doc = cases_dict.get(doc_id)
                     if doc:
-                        results.append(
-                            self._agent_case_doc_to_item(
-                                doc, score=hit.get("rerank_score", hit.get("score", 0))
-                            )
-                        )
+                        results.append(self._agent_case_doc_to_item(doc, score=score))
 
             elif method == "agentic":
                 results = await self._search_agentic_agent_cases(
@@ -1395,12 +1369,10 @@ class SearchMemoryService:
         """
         if not skill_ids:
             return {}
-        id_filter = self._build_mongo_id_filter(skill_ids)
-        if not id_filter:
-            return {}
         retire_confidence = DEFAULT_MEMORIZE_CONFIG.skill_retire_confidence
-        id_filter["confidence"] = {"$gte": retire_confidence}
-        docs = await AgentSkillRecord.find_many(id_filter).to_list()
+        docs = await self.agent_skill_raw_repo.find_by_ids(
+            skill_ids, min_confidence=retire_confidence
+        )
         return {str(d.id): d for d in docs}
 
     @staticmethod
@@ -1439,11 +1411,7 @@ class SearchMemoryService:
         a business timestamp, similar to profile.
         """
         results: List[SearchAgentSkillItem] = []
-        limit = (
-            top_k * MAX_RECALL_MULTIPLIER
-            if top_k > 0
-            else DEFAULT_TOP_K * MAX_RECALL_MULTIPLIER
-        )
+        limit = _compute_recall_limit(top_k, apply_multiplier=True)
 
         agent_skill_mt = MemoryType.AGENT_SKILL.value
         with timed("agent_skill_search"):
@@ -1505,12 +1473,15 @@ class SearchMemoryService:
 
             elif method == "hybrid" and query_vector:
                 # Hybrid: keyword + vector + rerank
+                recall_limit = _compute_recall_limit(
+                    top_k, apply_multiplier=0 < top_k <= HYBRID_TOP_K_THRESHOLD
+                )
                 stage_start = time.perf_counter()
                 keyword_hits = await self.agent_skill_es_repo.multi_search(
                     query=query_words,
                     user_id=filter_values["user_id"],
                     group_ids=filter_values["group_ids"],
-                    size=limit,
+                    size=recall_limit,
                     confidence_threshold=retire_confidence,
                 )
                 record_retrieve_stage(
@@ -1524,8 +1495,8 @@ class SearchMemoryService:
                     query_vector=query_vector,
                     user_id=filter_values["user_id"],
                     group_ids=filter_values["group_ids"],
-                    limit=limit,
-                    radius=radius,
+                    limit=recall_limit,
+                    radius=max(AGENT_MEMORY_MILVUS_RADIUS, radius or 0.0),
                     confidence_threshold=retire_confidence,
                 )
                 record_retrieve_stage(
@@ -1547,16 +1518,27 @@ class SearchMemoryService:
                 # Rerank
                 stage_start = time.perf_counter()
                 rerank_service = get_rerank_service()
+                rerank_top_k = top_k if top_k > 0 else DEFAULT_TOP_K
                 reranked_hits = await rerank_service.rerank_memories(
                     query=query,
                     hits=merged_hits,
-                    top_k=top_k if top_k > 0 else DEFAULT_TOP_K,
+                    top_k=rerank_top_k,
+                    instruction="Determine whether the skill's methodology and domain are applicable to the query, preferring same-domain skills with directly relevant steps."
                 )
+                rerank_ms = (time.perf_counter() - stage_start) * 1000
                 record_retrieve_stage(
                     retrieve_method=method,
                     stage='rerank',
                     memory_type=agent_skill_mt,
-                    duration_seconds=time.perf_counter() - stage_start,
+                    duration_seconds=rerank_ms / 1000,
+                )
+                logger.info(
+                    "[RERANK_DIAG] memory_type=%s in=%d out=%d top_k=%d took=%.1fms",
+                    agent_skill_mt,
+                    len(merged_hits),
+                    len(reranked_hits),
+                    rerank_top_k,
+                    rerank_ms,
                 )
                 # Backfill from MongoDB
                 skill_ids = [
@@ -1693,9 +1675,7 @@ class SearchMemoryService:
     async def _search_agentic_agent_skills(
         self, query: str, filter_values: Dict[str, Any], top_k: int
     ) -> List[SearchAgentSkillItem]:
-        """Search agent skills using agentic retrieval (LLM-guided multi-round).
-
-        """
+        """Search agent skills using agentic retrieval (LLM-guided multi-round)."""
         retrieve_request = RetrieveMemRequest(
             query=query,
             user_id=filter_values.get("user_id"),

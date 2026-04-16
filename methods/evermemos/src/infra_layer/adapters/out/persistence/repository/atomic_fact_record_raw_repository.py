@@ -5,12 +5,13 @@ Provides CRUD operations and query capabilities for generic atomic facts.
 """
 
 from datetime import datetime
-from typing import List, Optional, Type, TypeVar, Union
+from typing import Any, List, Optional, Type, TypeVar, Union
 from pymongo.asynchronous.client_session import AsyncClientSession
 from bson import ObjectId
 from core.observation.logger import get_logger
 from core.di.decorators import repository
 from core.oxm.mongo.base_repository import BaseRepository
+from core.oxm.mongo.mongo_utils import build_id_filter as _build_id_filter
 from core.oxm.constants import MAGIC_ALL
 from infra_layer.adapters.out.persistence.document.memory.atomic_fact_record import (
     AtomicFactRecord,
@@ -107,6 +108,39 @@ class AtomicFactRecordRawRepository(BaseRepository[AtomicFactRecord]):
         except Exception as e:
             logger.error("❌ Failed to retrieve personal atomic fact by ID: %s", e)
             return None
+
+    async def find_by_ids(
+        self,
+        ids: List[str],
+        projection_model: Optional[Type[Any]] = None,
+        session: Optional[AsyncClientSession] = None,
+    ) -> List[Union[AtomicFactRecord, AtomicFactRecordProjection]]:
+        """
+        Batch fetch atomic facts by their _id list.
+
+        Accepts both ObjectId-like strings and raw string IDs.
+
+        Args:
+            ids: List of document _id strings
+            projection_model: Optional projection model to reduce data transfer
+                (e.g. AtomicFactRecordProjection skips the vector field)
+            session: Optional MongoDB session
+
+        Returns:
+            List of AtomicFactRecord or projection model instances
+        """
+        query_filter = _build_id_filter(ids)
+        if query_filter is None:
+            return []
+        try:
+            if projection_model is not None:
+                return await self.model.find(
+                    query_filter, projection_model=projection_model, session=session
+                ).to_list()
+            return await self.model.find(query_filter, session=session).to_list()
+        except Exception as e:
+            logger.error("❌ Failed to find atomic facts by ids: %s", e)
+            return []
 
     async def get_by_parent_id(
         self,

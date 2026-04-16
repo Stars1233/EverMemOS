@@ -5,6 +5,7 @@ from bson import ObjectId
 from core.observation.logger import get_logger
 from core.di.decorators import repository
 from core.oxm.mongo.base_repository import BaseRepository
+from core.oxm.mongo.mongo_utils import build_id_filter as _build_id_filter
 from core.oxm.constants import MAGIC_ALL
 from infra_layer.adapters.out.persistence.document.memory.episodic_memory import (
     EpisodicMemory,
@@ -122,6 +123,40 @@ class EpisodicMemoryRawRepository(BaseRepository[EpisodicMemory]):
         except Exception as e:
             logger.error("❌ Failed to batch retrieve episodic memories: %s", e)
             return {}
+
+    async def find_by_ids(
+        self,
+        ids: List[str],
+        projection_model: Optional[Type[Any]] = None,
+        session: Optional[AsyncClientSession] = None,
+    ) -> List[Union[EpisodicMemory, EpisodicMemoryProjection]]:
+        """
+        Batch fetch episodic memories by their _id list.
+
+        Accepts both ObjectId-like strings and raw string IDs (for legacy
+        datasets where _id is not an ObjectId).
+
+        Args:
+            ids: List of document _id strings
+            projection_model: Optional projection model to reduce data transfer
+                (e.g. EpisodicMemoryProjection skips the vector field)
+            session: Optional MongoDB session
+
+        Returns:
+            List of EpisodicMemory or projection model instances
+        """
+        query_filter = _build_id_filter(ids)
+        if query_filter is None:
+            return []
+        try:
+            if projection_model is not None:
+                return await self.model.find(
+                    query_filter, projection_model=projection_model, session=session
+                ).to_list()
+            return await self.model.find(query_filter, session=session).to_list()
+        except Exception as e:
+            logger.error("❌ Failed to find episodic memories by ids: %s", e)
+            return []
 
     async def find_by_filters(
         self,

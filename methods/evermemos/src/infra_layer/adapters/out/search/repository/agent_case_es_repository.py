@@ -13,6 +13,7 @@ from infra_layer.adapters.out.search.elasticsearch.memory.agent_case import Agen
 from core.observation.logger import get_logger
 from common_utils.text_utils import SmartTextParser
 from core.di.decorators import repository
+from biz_layer.retrieve_constants import AGENT_MEMORY_ES_MIN_SHOULD_MATCH
 
 logger = get_logger(__name__)
 
@@ -129,7 +130,7 @@ class AgentCaseEsRepository(BaseRepository[AgentCaseDoc]):
 
                 bool_query_params = {
                     "should": should_queries,
-                    "minimum_should_match": 1,
+                    "minimum_should_match": AGENT_MEMORY_ES_MIN_SHOULD_MATCH,
                 }
 
                 if filter_queries:

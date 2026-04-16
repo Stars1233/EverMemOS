@@ -12,6 +12,7 @@ from core.observation.logger import get_logger
 from core.di.decorators import repository
 from core.oxm.constants import MAGIC_ALL
 from core.oxm.mongo.base_repository import BaseRepository
+from core.oxm.mongo.mongo_utils import build_id_filter as _build_id_filter
 from infra_layer.adapters.out.persistence.document.memory.agent_case import (
     AgentCaseRecord,
     AgentCaseProjection,
@@ -86,16 +87,17 @@ class AgentCaseRawRepository(BaseRepository[AgentCaseRecord]):
             return None
 
     async def get_by_ids(
-        self,
-        case_ids: List[str],
-        session: Optional[AsyncClientSession] = None,
+        self, case_ids: List[str], session: Optional[AsyncClientSession] = None
     ) -> List[AgentCaseRecord]:
-        """Batch retrieve agent cases by their own IDs."""
+        """Batch retrieve agent cases by their own IDs.
+
+        Accepts both ObjectId-like strings and raw string IDs.
+        """
+        query_filter = _build_id_filter(case_ids)
+        if query_filter is None:
+            return []
         try:
-            object_ids = [ObjectId(cid) for cid in case_ids]
-            return await self.model.find(
-                {"_id": {"$in": object_ids}}, session=session
-            ).to_list()
+            return await self.model.find(query_filter, session=session).to_list()
         except Exception as e:
             logger.error(f"[AgentCaseRepo] Failed to get by ids: {e}")
             return []

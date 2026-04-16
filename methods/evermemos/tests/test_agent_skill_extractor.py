@@ -1847,13 +1847,16 @@ class TestSummarizeCaseForPrompt:
         result = extractor._summarize_case_for_prompt(case)
         assert "key_insight" not in result
 
-    def test_approach_truncated(self):
+    @patch.object(AgentSkillExtractor, "_get_tokenizer")
+    def test_approach_truncated(self, mock_tok):
+        from tiktoken import get_encoding
+        mock_tok.return_value = get_encoding("o200k_base")
         extractor = _build_extractor()
-        long_approach = "x" * 1000
+        long_approach = "x " * 500
         case = _make_case_record(approach=long_approach)
-        result = extractor._summarize_case_for_prompt(case, max_approach_chars=100)
-        assert len(result["approach"]) == 100
+        result = extractor._summarize_case_for_prompt(case, max_approach_tokens=10)
         assert result["approach"].endswith("... [omitted]")
+        assert len(result["approach"]) < len(long_approach)
 
     def test_no_approach_omitted(self):
         extractor = _build_extractor()
@@ -1867,25 +1870,197 @@ class TestSummarizeCaseForPrompt:
 # ===========================================================================
 
 
+@patch.object(AgentSkillExtractor, "_get_tokenizer")
 class TestTruncateText:
-    """Tests for AgentSkillExtractor._truncate_text."""
+    """Tests for AgentSkillExtractor._truncate_text (token-based)."""
 
-    def test_short_text_unchanged(self):
-        assert AgentSkillExtractor._truncate_text("hello", 10) == "hello"
+    @staticmethod
+    def _real_tokenizer():
+        from tiktoken import get_encoding
+        return get_encoding("o200k_base")
 
-    def test_exact_length_unchanged(self):
-        assert AgentSkillExtractor._truncate_text("hello", 5) == "hello"
+    def test_short_text_unchanged(self, mock_tok):
+        mock_tok.return_value = self._real_tokenizer()
+        assert AgentSkillExtractor._truncate_text("hello", max_tokens=10) == "hello"
 
-    def test_long_text_truncated_with_ellipsis(self):
-        result = AgentSkillExtractor._truncate_text("a" * 30, 20)
-        assert len(result) == 20
+    def test_exact_tokens_unchanged(self, mock_tok):
+        mock_tok.return_value = self._real_tokenizer()
+        # "hello" is 1 token in o200k_base
+        assert AgentSkillExtractor._truncate_text("hello", max_tokens=1) == "hello"
+
+    def test_long_text_truncated_with_default_suffix(self, mock_tok):
+        mock_tok.return_value = self._real_tokenizer()
+        long_text = "word " * 200
+        result = AgentSkillExtractor._truncate_text(long_text, max_tokens=10)
+        assert result.endswith("... [omitted]")
+        assert len(result) < len(long_text)
+
+    def test_none_returns_none(self, mock_tok):
+        mock_tok.return_value = self._real_tokenizer()
+        assert AgentSkillExtractor._truncate_text(None, max_tokens=10) is None
+
+    def test_empty_returns_empty(self, mock_tok):
+        mock_tok.return_value = self._real_tokenizer()
+        assert AgentSkillExtractor._truncate_text("", max_tokens=10) == ""
+
+    def test_whitespace_stripped(self, mock_tok):
+        mock_tok.return_value = self._real_tokenizer()
+        assert AgentSkillExtractor._truncate_text("  hello  ", max_tokens=100) == "hello"
+
+    def test_custom_suffix(self, mock_tok):
+        mock_tok.return_value = self._real_tokenizer()
+        long_text = "word " * 200
+        result = AgentSkillExtractor._truncate_text(long_text, max_tokens=10, suffix="...")
+        assert result.endswith("...")
+        assert not result.endswith("... [omitted]")
+        assert len(result) < len(long_text)
+
+    def test_default_suffix(self, mock_tok):
+        mock_tok.return_value = self._real_tokenizer()
+        long_text = "word " * 200
+        result = AgentSkillExtractor._truncate_text(long_text, max_tokens=10)
         assert result.endswith("... [omitted]")
 
-    def test_none_returns_empty(self):
-        assert AgentSkillExtractor._truncate_text(None, 10) == ""
 
-    def test_whitespace_stripped(self):
-        assert AgentSkillExtractor._truncate_text("  hello  ", 100) == "hello"
+# ===========================================================================
+# Description truncation in _apply_add / _apply_update
+# ===========================================================================
+
+
+class TestDescriptionTruncation:
+    """Tests for description truncation via MAX_DESCRIPTION_TOKENS."""
+
+    @pytest.mark.asyncio
+    @patch.object(AgentSkillExtractor, "_get_tokenizer")
+    @patch("memory_layer.memory_extractor.agent_skill_extractor.AgentSkillExtractor._compute_embedding")
+    @patch("memory_layer.memory_extractor.agent_skill_extractor.AgentSkillExtractor._evaluate_maturity")
+    async def test_add_truncates_long_description(self, mock_maturity, mock_embed, mock_tok):
+        from tiktoken import get_encoding
+        mock_tok.return_value = get_encoding("o200k_base")
+        mock_embed.return_value = {"embedding": [0.1], "vector_model": "test"}
+        mock_maturity.return_value = 0.8
+        repo = _mock_skill_repo()
+        extractor = _build_extractor()
+
+        long_desc = "word " * 2000
+        op = {
+            "action": "add",
+            "data": {
+                "name": "Skill",
+                "description": long_desc,
+                "content": "## Steps\n1. Analyze the requirements carefully\n2. Build the implementation with tests\n3. Check all edge cases thoroughly\n4. Deploy to staging environment\n5. Verify in production setup",
+                "confidence": 0.7,
+            },
+        }
+        import infra_layer.adapters.out.persistence.document.memory.agent_skill as skill_mod
+        with patch.object(
+            skill_mod, "AgentSkillRecord",
+            side_effect=lambda **kwargs: SimpleNamespace(**kwargs, id="new_001"),
+        ) as mock_cls:
+            await extractor._apply_add(op, "c", "g", "u", repo, source_case_ids=["e1"])
+            saved_desc = mock_cls.call_args[1]["description"]
+        assert len(saved_desc) < len(long_desc)
+        assert saved_desc.endswith("...")
+
+    @pytest.mark.asyncio
+    @patch.object(AgentSkillExtractor, "_get_tokenizer")
+    @patch("memory_layer.memory_extractor.agent_skill_extractor.AgentSkillExtractor._compute_embedding")
+    @patch("memory_layer.memory_extractor.agent_skill_extractor.AgentSkillExtractor._evaluate_maturity")
+    async def test_add_short_description_not_truncated(self, mock_maturity, mock_embed, mock_tok):
+        from tiktoken import get_encoding
+        mock_tok.return_value = get_encoding("o200k_base")
+        mock_embed.return_value = {"embedding": [0.1], "vector_model": "test"}
+        mock_maturity.return_value = 0.8
+        repo = _mock_skill_repo()
+        extractor = _build_extractor()
+
+        op = {
+            "action": "add",
+            "data": {
+                "name": "Skill",
+                "description": "Short desc",
+                "content": "## Steps\n1. Analyze the requirements carefully\n2. Build the implementation with tests\n3. Check all edge cases thoroughly\n4. Deploy to staging environment\n5. Verify in production setup",
+                "confidence": 0.7,
+            },
+        }
+        import infra_layer.adapters.out.persistence.document.memory.agent_skill as skill_mod
+        with patch.object(
+            skill_mod, "AgentSkillRecord",
+            side_effect=lambda **kwargs: SimpleNamespace(**kwargs, id="new_001"),
+        ) as mock_cls:
+            await extractor._apply_add(op, "c", "g", "u", repo, source_case_ids=["e1"])
+            saved_desc = mock_cls.call_args[1]["description"]
+        assert saved_desc == "Short desc"
+        assert not saved_desc.endswith("...")
+
+    @pytest.mark.asyncio
+    @patch.object(AgentSkillExtractor, "_get_tokenizer")
+    @patch("memory_layer.memory_extractor.agent_skill_extractor.AgentSkillExtractor._compute_embedding")
+    @patch("memory_layer.memory_extractor.agent_skill_extractor.AgentSkillExtractor._evaluate_maturity")
+    async def test_update_truncates_long_description(self, mock_maturity, mock_embed, mock_tok):
+        from tiktoken import get_encoding
+        mock_tok.return_value = get_encoding("o200k_base")
+        mock_embed.return_value = {"embedding": [0.1], "vector_model": "test"}
+        mock_maturity.return_value = 0.8
+        repo = _mock_skill_repo()
+        extractor = _build_extractor()
+
+        long_desc = "word " * 2000
+        record = _make_skill_record()
+        op = {
+            "action": "update",
+            "index": 0,
+            "data": {"description": long_desc},
+        }
+        result = SkillExtractionResult()
+        await extractor._apply_update(
+            op, [record], repo, result, source_case_ids=["e1"]
+        )
+        update_dict = repo.update_skill_by_id.call_args[0][1]
+        saved_desc = update_dict["description"]
+        assert len(saved_desc) < len(long_desc)
+        assert saved_desc.endswith("...")
+
+    @pytest.mark.asyncio
+    @patch.object(AgentSkillExtractor, "_get_tokenizer")
+    @patch("memory_layer.memory_extractor.agent_skill_extractor.AgentSkillExtractor._compute_embedding")
+    @patch("memory_layer.memory_extractor.agent_skill_extractor.AgentSkillExtractor._evaluate_maturity")
+    async def test_update_short_description_not_truncated(self, mock_maturity, mock_embed, mock_tok):
+        from tiktoken import get_encoding
+        mock_tok.return_value = get_encoding("o200k_base")
+        mock_embed.return_value = {"embedding": [0.1], "vector_model": "test"}
+        mock_maturity.return_value = 0.8
+        repo = _mock_skill_repo()
+        extractor = _build_extractor()
+
+        record = _make_skill_record()
+        op = {
+            "action": "update",
+            "index": 0,
+            "data": {"description": "New short desc"},
+        }
+        result = SkillExtractionResult()
+        await extractor._apply_update(
+            op, [record], repo, result, source_case_ids=["e1"]
+        )
+        update_dict = repo.update_skill_by_id.call_args[0][1]
+        assert update_dict["description"] == "New short desc"
+
+    @pytest.mark.asyncio
+    async def test_update_empty_description_not_added_to_updates(self):
+        repo = _mock_skill_repo()
+        extractor = _build_extractor()
+
+        record = _make_skill_record()
+        op = {
+            "action": "update",
+            "index": 0,
+            "data": {"description": "", "confidence": 0.9},
+        }
+        result = SkillExtractionResult()
+        await extractor._apply_update(op, [record], repo, result)
+        update_dict = repo.update_skill_by_id.call_args[0][1]
+        assert "description" not in update_dict
 
 
 # ===========================================================================

@@ -42,6 +42,18 @@ DEFAULT_RERANK_SCORE_THRESHOLD = float(os.getenv("RERANK_SCORE_THRESHOLD", "0.6"
 # Note: ES BM25 threshold is not set for now, as BM25 scores have no standardized range
 # Will be determined after data validation
 
+# === Agent Memory Retrieval Thresholds ===
+# Milvus COSINE similarity radius for agent_memory hybrid retrieval
+# Filters out low-similarity vectors at Milvus search level
+# Configurable via AGENT_MEMORY_MILVUS_RADIUS env var, default: 0.1
+AGENT_MEMORY_MILVUS_RADIUS = float(os.getenv("AGENT_MEMORY_MILVUS_RADIUS", "0.1"))
+
+# ES minimum_should_match for agent_memory BM25 keyword search
+# Percentage of query terms that must match (e.g., "10%" means 1 of 10 terms)
+# Supports ES syntax: integer (2), negative (-2), percentage ("10%")
+# Configurable via AGENT_MEMORY_ES_MIN_SHOULD_MATCH env var, default: "10%"
+AGENT_MEMORY_ES_MIN_SHOULD_MATCH = os.getenv("AGENT_MEMORY_ES_MIN_SHOULD_MATCH", "10%")
+
 # Export all constants
 __all__ = [
     "DEFAULT_TOPK_LIMIT",
@@ -49,4 +61,6 @@ __all__ = [
     "DEFAULT_RECALL_MULTIPLIER",
     "DEFAULT_MILVUS_SIMILARITY_THRESHOLD",
     "DEFAULT_RERANK_SCORE_THRESHOLD",
+    "AGENT_MEMORY_MILVUS_RADIUS",
+    "AGENT_MEMORY_ES_MIN_SHOULD_MATCH",
 ]

@@ -1,5 +1,7 @@
 import asyncio
+import concurrent.futures
 import contextvars
+import os
 from functools import wraps
 from typing import Any, Callable, Optional, TypeVar, Union, List, Dict
 
@@ -9,9 +11,26 @@ from pymilvus.client.types import CompactionPlans, CompactionState, Replica
 
 T = TypeVar('T')
 
+# Dedicated thread pool for pymilvus sync calls.
+# Pre-warms threads at import time so concurrent requests don't pay
+# thread-creation latency. Sized for burst concurrency: pymilvus is
+# I/O-bound (gRPC network waits), so idle threads consume near-zero CPU.
+_MILVUS_POOL_SIZE = int(os.getenv("MILVUS_THREAD_POOL_SIZE", "25"))
+_milvus_executor = concurrent.futures.ThreadPoolExecutor(
+    max_workers=_MILVUS_POOL_SIZE, thread_name_prefix="milvus"
+)
+# Pre-warm: force all threads to be created immediately
+concurrent.futures.wait(
+    [_milvus_executor.submit(lambda: None) for _ in range(_MILVUS_POOL_SIZE)]
+)
+
 
 def async_wrap(func: Callable[..., T]) -> Callable[..., asyncio.Future[T]]:
     """Decorator that wraps a synchronous method into an asynchronous one.
+
+    Uses a dedicated pre-warmed thread pool (_milvus_executor) instead of
+    the default executor, so pymilvus blocking calls don't compete with
+    other run_in_executor users and threads are ready immediately.
 
     Note: Use contextvars.copy_context() to ensure that threads in the thread pool can access contextvars
     (such as tenant context), because run_in_executor does not pass the asyncio Context by default.
@@ -22,7 +41,9 @@ def async_wrap(func: Callable[..., T]) -> Callable[..., asyncio.Future[T]]:
         loop = asyncio.get_running_loop()
         # Copy current context to ensure contextvars are accessible in the thread pool
         ctx = contextvars.copy_context()
-        return await loop.run_in_executor(None, lambda: ctx.run(func, *args, **kwargs))
+        return await loop.run_in_executor(
+            _milvus_executor, lambda: ctx.run(func, *args, **kwargs)
+        )
 
     return run
 

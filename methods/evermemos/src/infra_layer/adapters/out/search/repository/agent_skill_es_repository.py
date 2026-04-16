@@ -13,6 +13,7 @@ from infra_layer.adapters.out.search.elasticsearch.memory.agent_skill import (
     AgentSkillDoc,
 )
 from core.observation.logger import get_logger
+from biz_layer.retrieve_constants import AGENT_MEMORY_ES_MIN_SHOULD_MATCH
 from common_utils.text_utils import SmartTextParser
 from core.di.decorators import repository
 
@@ -139,7 +140,7 @@ class AgentSkillEsRepository(BaseRepository[AgentSkillDoc]):
 
                 bool_query_params = {
                     "should": should_queries,
-                    "minimum_should_match": 1,
+                    "minimum_should_match": AGENT_MEMORY_ES_MIN_SHOULD_MATCH,
                 }
 
                 if filter_queries:

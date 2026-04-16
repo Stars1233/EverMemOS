@@ -445,20 +445,16 @@ class TestFetchAgentSkillsConfidenceFilter:
         high_conf_doc = _make_skill_doc(confidence=0.8)
         high_id = str(high_conf_doc.id)
 
-        with patch(
-            "agentic_layer.search_mem_service.AgentSkillRecord"
-        ) as mock_record_cls:
-            mock_query = MagicMock()
-            mock_query.to_list = AsyncMock(return_value=[high_conf_doc])
-            mock_record_cls.find_many.return_value = mock_query
+        search_service.agent_skill_raw_repo.find_by_ids = AsyncMock(
+            return_value=[high_conf_doc]
+        )
 
-            result = await search_service._fetch_agent_skills_by_ids([high_id])
+        result = await search_service._fetch_agent_skills_by_ids([high_id])
 
-            call_args = mock_record_cls.find_many.call_args[0][0]
-            assert "confidence" in call_args
-            assert "$gte" in call_args["confidence"]
-            assert call_args["confidence"]["$gte"] == 0.1
-            assert high_id in result
+        call_kwargs = search_service.agent_skill_raw_repo.find_by_ids.call_args
+        assert call_kwargs[0][0] == [high_id]
+        assert call_kwargs[1]["min_confidence"] == pytest.approx(0.1)
+        assert high_id in result
 
     @pytest.mark.asyncio
     async def test_empty_ids_returns_empty(self, search_service):
@@ -888,23 +884,11 @@ class TestHybridEdgeCases:
             return_value=[_milvus_result(doc_id, score=0.9)]
         )
 
-        mock_rerank_svc = AsyncMock()
-        # Rerank should receive only 1 merged hit (deduped)
-        mock_rerank_svc.rerank_memories = AsyncMock(
-            return_value=[{"id": doc_id, "rerank_score": 0.95}]
-        )
-
-        with (
-            patch.object(
-                search_service,
-                "_fetch_agent_cases_by_ids",
-                new_callable=AsyncMock,
-                return_value={doc_id: doc},
-            ),
-            patch(
-                "agentic_layer.search_mem_service.get_rerank_service",
-                return_value=mock_rerank_svc,
-            ),
+        with patch.object(
+            search_service,
+            "_fetch_agent_cases_by_ids",
+            new_callable=AsyncMock,
+            return_value={doc_id: doc},
         ):
             results = await search_service._search_agent_cases(
                 query="API",
@@ -923,19 +907,14 @@ class TestHybridEdgeCases:
                 radius=None,
             )
 
-        # Rerank received only 1 hit (not 2)
-        merged = (
-            mock_rerank_svc.rerank_memories.call_args[1].get("hits")
-            or mock_rerank_svc.rerank_memories.call_args[0][1]
-            if len(mock_rerank_svc.rerank_memories.call_args[0]) > 1
-            else mock_rerank_svc.rerank_memories.call_args.kwargs.get("hits")
-        )
-        assert len(merged) == 1
         assert len(results) == 1
+        # vector_anchored_fusion: alpha*vec + (1-alpha)*sat_bm25
+        # sat_bm25 = 5.0/(5.0+5.0) = 0.5; score = 0.7*0.9 + 0.3*0.5 = 0.78
+        assert results[0].score == pytest.approx(0.78)
 
     @pytest.mark.asyncio
     async def test_hybrid_case_backfill_missing_doc(self, search_service):
-        """When rerank returns IDs not in MongoDB, they are skipped."""
+        """When fused IDs are not in MongoDB, they are skipped."""
         doc = _make_case_doc()
         doc_id = str(doc.id)
         missing_id = str(ObjectId())
@@ -947,25 +926,11 @@ class TestHybridEdgeCases:
             return_value=[_milvus_result(missing_id)]
         )
 
-        mock_rerank_svc = AsyncMock()
-        mock_rerank_svc.rerank_memories = AsyncMock(
-            return_value=[
-                {"id": doc_id, "rerank_score": 0.95},
-                {"id": missing_id, "rerank_score": 0.90},
-            ]
-        )
-
-        with (
-            patch.object(
-                search_service,
-                "_fetch_agent_cases_by_ids",
-                new_callable=AsyncMock,
-                return_value={doc_id: doc},  # missing_id not in dict
-            ),
-            patch(
-                "agentic_layer.search_mem_service.get_rerank_service",
-                return_value=mock_rerank_svc,
-            ),
+        with patch.object(
+            search_service,
+            "_fetch_agent_cases_by_ids",
+            new_callable=AsyncMock,
+            return_value={doc_id: doc},  # missing_id not in dict
         ):
             results = await search_service._search_agent_cases(
                 query="API",
@@ -1033,31 +998,20 @@ class TestHybridEdgeCases:
 
     @pytest.mark.asyncio
     async def test_hybrid_case_empty_query_words(self, search_service):
-        """hybrid works when query_words is empty (passes '' to rerank)."""
+        """hybrid works when query_words is empty (only vector results)."""
         doc = _make_case_doc()
         doc_id = str(doc.id)
 
         search_service.agent_case_es_repo.multi_search = AsyncMock(return_value=[])
         search_service.agent_case_milvus_repo.vector_search = AsyncMock(
-            return_value=[_milvus_result(doc_id)]
+            return_value=[_milvus_result(doc_id, score=0.8)]
         )
 
-        mock_rerank_svc = AsyncMock()
-        mock_rerank_svc.rerank_memories = AsyncMock(
-            return_value=[{"id": doc_id, "rerank_score": 0.8}]
-        )
-
-        with (
-            patch.object(
-                search_service,
-                "_fetch_agent_cases_by_ids",
-                new_callable=AsyncMock,
-                return_value={doc_id: doc},
-            ),
-            patch(
-                "agentic_layer.search_mem_service.get_rerank_service",
-                return_value=mock_rerank_svc,
-            ),
+        with patch.object(
+            search_service,
+            "_fetch_agent_cases_by_ids",
+            new_callable=AsyncMock,
+            return_value={doc_id: doc},
         ):
             results = await search_service._search_agent_cases(
                 query="",
@@ -1076,10 +1030,131 @@ class TestHybridEdgeCases:
                 radius=None,
             )
 
-        # Rerank called with empty string query
-        call_kwargs = mock_rerank_svc.rerank_memories.call_args.kwargs
-        assert call_kwargs.get("query") == ""
         assert len(results) == 1
+        # vector_anchored_fusion: only vector hit, no keyword hit
+        # score = 0.7*0.8 + 0.3*0.0 = 0.56
+        assert results[0].score == pytest.approx(0.56)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "top_k, expected_recall_limit",
+        [
+            (-1, 10),   # default: no multiplier, falls back to DEFAULT_TOP_K
+            (0, 10),    # zero treated as default: no multiplier
+            (3, 6),     # small explicit: multiplier applied (3*2)
+            (5, 10),    # boundary: multiplier applied (5*2)
+            (6, 6),     # above threshold: no multiplier
+            (10, 10),   # large explicit: no multiplier
+        ],
+    )
+    async def test_hybrid_case_recall_limit(
+        self, search_service, top_k, expected_recall_limit
+    ):
+        """Hybrid case search applies multiplier only when 0 < top_k <= HYBRID_TOP_K_THRESHOLD."""
+        doc = _make_case_doc()
+        doc_id = str(doc.id)
+
+        search_service.agent_case_es_repo.multi_search = AsyncMock(
+            return_value=[_es_hit(doc_id)]
+        )
+        search_service.agent_case_milvus_repo.vector_search = AsyncMock(
+            return_value=[_milvus_result(doc_id)]
+        )
+
+        with patch.object(
+            search_service,
+            "_fetch_agent_cases_by_ids",
+            new_callable=AsyncMock,
+            return_value={doc_id: doc},
+        ):
+            await search_service._search_agent_cases(
+                query="API",
+                query_words=["API"],
+                query_vector=[0.1],
+                method="hybrid",
+                filter_values={
+                    "user_id": "u1",
+                    "group_ids": None,
+                    "session_id": None,
+                    "start_time": None,
+                    "end_time": None,
+                },
+                date_range={},
+                top_k=top_k,
+                radius=None,
+            )
+
+        es_call_kwargs = search_service.agent_case_es_repo.multi_search.call_args.kwargs
+        assert es_call_kwargs["size"] == expected_recall_limit
+
+        milvus_call_kwargs = (
+            search_service.agent_case_milvus_repo.vector_search.call_args.kwargs
+        )
+        assert milvus_call_kwargs["limit"] == expected_recall_limit
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "top_k, expected_recall_limit",
+        [
+            (-1, 10),   # default: no multiplier, falls back to DEFAULT_TOP_K
+            (0, 10),    # zero treated as default: no multiplier
+            (3, 6),     # small explicit: multiplier applied (3*2)
+            (5, 10),    # boundary: multiplier applied (5*2)
+            (6, 6),     # above threshold: no multiplier
+            (10, 10),   # large explicit: no multiplier
+        ],
+    )
+    async def test_hybrid_skill_recall_limit(
+        self, search_service, top_k, expected_recall_limit
+    ):
+        """Hybrid skill search applies multiplier only when 0 < top_k <= HYBRID_TOP_K_THRESHOLD."""
+        doc = _make_skill_doc()
+        doc_id = str(doc.id)
+
+        search_service.agent_skill_es_repo.multi_search = AsyncMock(
+            return_value=[_es_hit(doc_id)]
+        )
+        search_service.agent_skill_milvus_repo.vector_search = AsyncMock(
+            return_value=[_milvus_result(doc_id)]
+        )
+
+        mock_rerank_svc = AsyncMock()
+        mock_rerank_svc.rerank_memories = AsyncMock(
+            return_value=[{"id": doc_id, "rerank_score": 0.9}]
+        )
+
+        with (
+            patch.object(
+                search_service,
+                "_fetch_agent_skills_by_ids",
+                new_callable=AsyncMock,
+                return_value={doc_id: doc},
+            ),
+            patch(
+                "agentic_layer.search_mem_service.get_rerank_service",
+                return_value=mock_rerank_svc,
+            ),
+        ):
+            await search_service._search_agent_skills(
+                query="API",
+                query_words=["API"],
+                query_vector=[0.1],
+                method="hybrid",
+                filter_values={
+                    "user_id": "u1",
+                    "group_ids": None,
+                },
+                top_k=top_k,
+                radius=None,
+            )
+
+        es_call_kwargs = search_service.agent_skill_es_repo.multi_search.call_args.kwargs
+        assert es_call_kwargs["size"] == expected_recall_limit
+
+        milvus_call_kwargs = (
+            search_service.agent_skill_milvus_repo.vector_search.call_args.kwargs
+        )
+        assert milvus_call_kwargs["limit"] == expected_recall_limit
 
 
 # ===========================================================================
@@ -1170,3 +1245,73 @@ class TestSearchMemoriesRequestValidation:
 
         req = SearchMemoriesRequest(query="hello", filters={"user_id": "u1"})
         assert req.query == "hello"
+
+
+# ===========================================================================
+# _compute_recall_limit tests
+# ===========================================================================
+
+
+class TestComputeRecallLimit:
+    """Tests for _compute_recall_limit helper function."""
+
+    def test_with_multiplier_normal_top_k(self):
+        from agentic_layer.search_mem_service import _compute_recall_limit
+
+        assert _compute_recall_limit(top_k=3, apply_multiplier=True) == 6
+
+    def test_with_multiplier_top_k_five(self):
+        from agentic_layer.search_mem_service import _compute_recall_limit
+
+        assert _compute_recall_limit(top_k=5, apply_multiplier=True) == 10
+
+    def test_with_multiplier_top_k_zero_uses_default(self):
+        from agentic_layer.search_mem_service import (
+            _compute_recall_limit,
+            DEFAULT_TOP_K,
+            MAX_RECALL_MULTIPLIER,
+        )
+
+        assert _compute_recall_limit(top_k=0, apply_multiplier=True) == (
+            DEFAULT_TOP_K * MAX_RECALL_MULTIPLIER
+        )
+
+    def test_without_multiplier_large_top_k(self):
+        from agentic_layer.search_mem_service import _compute_recall_limit
+
+        assert _compute_recall_limit(top_k=8, apply_multiplier=False) == 8
+
+    def test_without_multiplier_top_k_ten(self):
+        from agentic_layer.search_mem_service import _compute_recall_limit
+
+        assert _compute_recall_limit(top_k=10, apply_multiplier=False) == 10
+
+    def test_without_multiplier_top_k_zero_uses_default(self):
+        from agentic_layer.search_mem_service import (
+            _compute_recall_limit,
+            DEFAULT_TOP_K,
+        )
+
+        assert _compute_recall_limit(top_k=0, apply_multiplier=False) == DEFAULT_TOP_K
+
+    def test_without_multiplier_top_k_one(self):
+        from agentic_layer.search_mem_service import _compute_recall_limit
+
+        assert _compute_recall_limit(top_k=1, apply_multiplier=False) == 1
+
+    def test_with_multiplier_top_k_one(self):
+        from agentic_layer.search_mem_service import _compute_recall_limit
+
+        assert _compute_recall_limit(top_k=1, apply_multiplier=True) == 2
+
+    def test_negative_top_k_uses_default(self):
+        from agentic_layer.search_mem_service import (
+            _compute_recall_limit,
+            DEFAULT_TOP_K,
+            MAX_RECALL_MULTIPLIER,
+        )
+
+        assert _compute_recall_limit(top_k=-1, apply_multiplier=True) == (
+            DEFAULT_TOP_K * MAX_RECALL_MULTIPLIER
+        )
+        assert _compute_recall_limit(top_k=-1, apply_multiplier=False) == DEFAULT_TOP_K

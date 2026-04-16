@@ -11,6 +11,7 @@ from bson import ObjectId
 from core.observation.logger import get_logger
 from core.di.decorators import repository
 from core.oxm.mongo.base_repository import BaseRepository
+from core.oxm.mongo.mongo_utils import build_id_filter as _build_id_filter
 from core.oxm.constants import MAGIC_ALL
 from infra_layer.adapters.out.persistence.document.memory.agent_skill import (
     AgentSkillRecord,
@@ -30,6 +31,42 @@ class AgentSkillRawRepository(BaseRepository[AgentSkillRecord]):
 
     def __init__(self):
         super().__init__(AgentSkillRecord)
+
+    async def find_by_ids(
+        self,
+        ids: List[str],
+        min_confidence: Optional[float] = None,
+        session: Optional[AsyncClientSession] = None,
+    ) -> List[AgentSkillRecord]:
+        """Batch fetch agent skills by _id list, optionally filtering retired skills.
+
+        Accepts both ObjectId-like strings and raw string IDs.
+
+        Args:
+            ids: List of document _id strings
+            min_confidence: Exclude skills with confidence below this threshold.
+                None to include all skills regardless of confidence.
+            session: Optional MongoDB session
+
+        Returns:
+            List of AgentSkillRecord
+        """
+        id_filter = _build_id_filter(ids)
+        if id_filter is None:
+            return []
+        try:
+            if min_confidence is None:
+                query: Dict[str, Any] = id_filter
+            elif "$or" in id_filter:
+                # id_filter is {"$or": [...]}; combine with $and
+                query = {"$and": [id_filter, {"confidence": {"$gte": min_confidence}}]}
+            else:
+                # id_filter is {"_id": {"$in": [...]}}; merge directly
+                query = {**id_filter, "confidence": {"$gte": min_confidence}}
+            return await self.model.find(query, session=session).to_list()
+        except Exception as e:
+            logger.error(f"[AgentSkillRepo] Failed to find by ids: {e}")
+            return []
 
     async def save_skill(
         self, record: AgentSkillRecord, session: Optional[AsyncClientSession] = None

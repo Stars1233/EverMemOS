@@ -209,8 +209,8 @@ async def main():
     # Step 3: Wait for extraction
     print("\nStep 3: Wait for extraction pipeline")
     print_separator()
-    print("  Waiting 30 seconds for memory extraction...")
-    await asyncio.sleep(30)
+    print("  Waiting 60 seconds for memory extraction...")
+    await asyncio.sleep(60)
 
     # Step 4: Fetch and print all extracted memories
     print("\nStep 4: Fetch all extracted memories")

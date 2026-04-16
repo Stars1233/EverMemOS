@@ -23,6 +23,8 @@ import numpy as np
 from api_specs.memory_types import AgentCase
 from common_utils.json_utils import parse_json_response
 
+from core.component.llm.tokenizer.tokenizer_factory import TokenizerFactory
+from core.di.utils import get_bean_by_type
 from memory_layer.llm.llm_provider import LLMProvider
 from memory_layer.prompts import get_prompt_by
 from core.observation.logger import get_logger
@@ -60,6 +62,10 @@ class AgentSkillExtractor:
     - Applies each operation with targeted DB writes (unchanged skills are untouched)
     """
 
+    # Max tokens for skill description fields
+    MAX_DESCRIPTION_TOKENS: int = 400
+    # Max tokens for skill content fields in prompt
+    MAX_CONTENT_TOKENS: int = 5000
     # quality_score threshold that determines which extraction prompt to use
     FAILURE_QUALITY_THRESHOLD: float = 0.5
 
@@ -108,17 +114,32 @@ class AgentSkillExtractor:
             formatted, ensure_ascii=False, indent=2, default=self._json_default
         )
 
-    @staticmethod
-    def _truncate_text(text: str, max_chars: int = 800) -> str:
-        """Truncate text to max_chars, appending '...' if truncated."""
-        text = (text or "").strip()
-        if len(text) <= max_chars:
+    @classmethod
+    def _get_tokenizer(cls):
+        """Get the shared tokenizer from tokenizer factory."""
+        tokenizer_factory: TokenizerFactory = get_bean_by_type(TokenizerFactory)
+        return tokenizer_factory.get_tokenizer_from_tiktoken("o200k_base")
+
+    @classmethod
+    def _truncate_text(
+        cls,
+        text: str,
+        max_tokens: int = 200,
+        suffix: str = "... [omitted]",
+    ) -> str:
+        """Truncate text to max_tokens using tokenizer, appending suffix if truncated."""
+        if not text or not isinstance(text, str):
             return text
-        suffix = "... [omitted]"
-        return text[: max_chars - len(suffix)].rstrip() + suffix
+        text = text.strip()
+        tokenizer = cls._get_tokenizer()
+        tokens = tokenizer.encode(text)
+        if len(tokens) <= max_tokens:
+            return text
+        head_text = tokenizer.decode(tokens[:max_tokens])
+        return head_text.rstrip() + suffix
 
     def _summarize_case_for_prompt(
-        self, case_record: Any, max_approach_chars: int = 800
+        self, case_record: Any, max_approach_tokens: int = 200
     ) -> Dict[str, Any]:
         """Build a compact case summary dict for inclusion in the skill prompt."""
         entry: Dict[str, Any] = {
@@ -130,7 +151,7 @@ class AgentSkillExtractor:
             entry["key_insight"] = key_insight
         approach = getattr(case_record, "approach", None)
         if approach:
-            entry["approach"] = self._truncate_text(approach, max_chars=max_approach_chars)
+            entry["approach"] = self._truncate_text(approach, max_tokens=max_approach_tokens)
         return entry
 
     def _format_existing_skills(
@@ -138,7 +159,7 @@ class AgentSkillExtractor:
         existing_records: List[Any],
         case_history: Optional[List[Any]] = None,
         max_support_cases: int = 3,
-        max_approach_chars: int = 800,
+        max_approach_tokens: int = 200,
     ) -> str:
         """Format existing AgentSkillRecords with index numbers for the LLM.
 
@@ -160,8 +181,8 @@ class AgentSkillExtractor:
             item: Dict[str, Any] = {
                 "index": idx,
                 "name": rec.name,
-                "description": self._truncate_text(rec.description, max_chars=1000),
-                "content": self._truncate_text(rec.content, max_chars=20000),
+                "description": self._truncate_text(rec.description, max_tokens=self.MAX_DESCRIPTION_TOKENS),
+                "content": self._truncate_text(rec.content, max_tokens=self.MAX_CONTENT_TOKENS),
                 "confidence": rec.confidence,
             }
 
@@ -174,7 +195,7 @@ class AgentSkillExtractor:
                     item["supporting_case_count"] = len(matched_ids)
                     item["supporting_cases"] = [
                         self._summarize_case_for_prompt(
-                            case_map[str(sid)], max_approach_chars=max_approach_chars
+                            case_map[str(sid)], max_approach_tokens=max_approach_tokens
                         )
                         for sid in recent_ids
                     ]
@@ -433,6 +454,7 @@ class AgentSkillExtractor:
                 "[AgentSkillExtractor] add operation has no name and no description, skipping"
             )
             return None
+        description = self._truncate_text(description, max_tokens=self.MAX_DESCRIPTION_TOKENS, suffix="...")
 
         try:
             confidence = max(0.0, min(1.0, float(data.get("confidence", 0.5))))
@@ -523,6 +545,7 @@ class AgentSkillExtractor:
 
         new_name = data.get("name", "")
         new_description = data.get("description", "")
+        new_description = self._truncate_text(new_description, max_tokens=self.MAX_DESCRIPTION_TOKENS, suffix="...")
         new_content = data.get("content", "")
         new_confidence = data.get("confidence")
 
