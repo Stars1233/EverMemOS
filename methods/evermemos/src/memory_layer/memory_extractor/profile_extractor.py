@@ -24,7 +24,7 @@ from memory_layer.memory_extractor.base_memory_extractor import (
     MemoryExtractRequest,
 )
 from memory_layer.prompts import get_prompt_by
-from api_specs.memory_types import MemCell, MemoryType, ProfileMemory, ScenarioType, get_text_from_content_items
+from api_specs.memory_types import MemCell, MemoryType, ProfileMemory, ScenarioType, get_text_from_content_items, is_intermediate_agent_step
 
 logger = get_logger(__name__)
 
@@ -469,6 +469,8 @@ class ProfileExtractor(MemoryExtractor):
             if original_data and isinstance(original_data, list):
                 for msg in original_data:
                     m = msg.get("message", msg)
+                    if is_intermediate_agent_step(m):
+                        continue
                     sender = m.get("sender_name", "Unknown")
                     content = get_text_from_content_items(m.get("content", []))
                     ts = m.get("timestamp", "")
