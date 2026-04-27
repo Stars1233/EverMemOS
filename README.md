@@ -10,7 +10,7 @@
   <!-- <a href="https://huggingface.co/datasets/EverMind-AI/EverMemBench-Dynamic"><img src="https://img.shields.io/badge/🤗_HuggingFace-EverMemBench--Dynamic-F5C842?labelColor=gray&style=flat-square" alt="HuggingFace: EverMemBench-Dynamic"></a> -->
   <a href="https://x.com/evermind"><img src="https://img.shields.io/badge/EverMind-000000?labelColor=gray&style=for-the-badge&logo=x&logoColor=white" alt="X"></a>
   <a href="https://discord.gg/gYep5nQRZJ"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Fv10%2Finvites%2FgYep5nQRZJ%3Fwith_counts%3Dtrue&query=%24.approximate_presence_count&suffix=%20online&label=Discord&color=404EED&labelColor=gray&style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
-  <a href="https://github.com/EverMind-AI/EverOS/discussions/67"><img src="https://img.shields.io/badge/WeChat-EverMind-07C160?labelColor=gray&style=for-the-badge&logo=wechat&logoColor=white" alt="WeChat"></a>
+  <a href="https://github.com/EverMind-AI/EverOS/discussions/67"><img src="https://img.shields.io/badge/WeCom-EverMind_社区-07C160?labelColor=gray&style=for-the-badge&logo=wechat&logoColor=white" alt="WeChat"></a>
   <a href="https://github.com/EverMind-AI/EverOS/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-2196F3?labelColor=gray&style=for-the-badge" alt="License"></a>
 </p>
 
@@ -18,62 +18,85 @@
 
 </div>
 
-<br>
-
-> [!IMPORTANT]
->
-> ### Project Structure Update
->
-> We've unified [EverCore](methods/evermemos/), [HyperMem](methods/HyperMem/), [EverMemBench](benchmarks/EverMemBench/), and [EvoAgentBench](benchmarks/EvoAgentBench/) with [ use-cases ](use-cases/) into a single repository.
->
-> EverOS gives developers one place to build, evaluate, and integrate long-term memory into their self-evolving agents. 🎉
 
 <br>
+
+<details open>
+  <summary><kbd>Table of Contents</kbd></summary>
+
+<br>
+
+- [Project Overview](#project-overview)
+- [Methods](#methods)
+- [Benchmarks](#benchmarks)
+- [Quick Start](#quick-start)
+- [Evaluation & Benchmarking](#evaluation--benchmarking)
+- [Use Cases](#use-cases)
+- [Citation](#citation)
+- [Stay Tuned](#-stay-tuned)
+- [Contributing](#contributing)
+
+<br>
+
+</details>
+
+
 
 ## Project Overview
 
-**EverOS** is a collection of long-term memory **methods**, **benchmarks**, and **usecases** for building self-evolving agents.
+**EverOS** brings together long-term memory **methods**, **benchmarks**, and **use cases** for building self-evolving agents.
+
+At the heart of EverOS is **EverCore** — a long-term memory operating system for agents. Follow the [Quick Start](#quick-start) to spin it up in a few minutes. From there, plug it into one of the **use cases** as a template and watch your agent come alive with persistent memory you can actually see and feel. When you are ready to know how good it really is, run the **benchmarks** to measure how your agent remembers, reasons, and evolves.
 
 ```
 EverOS/
-└── methods/
-    ├── EverCore/            # Long-term memory operating system
-    └── HyperMem/            # Hypergraph memory architecture
-├── benchmarks/
-│   ├── EverMemBench/        # Memory quality evaluation
-│   └── EvoAgentBench/       # Agent self-evolution evaluation
-└── use-cases/               # Example use cases
-    ├── claude-code-plugin/        
-    └── game-of-throne-demo/            
+├── benchmarks/                # Evaluation suites
+│   ├── EverMemBench/          # Memory quality evaluation
+│   └── EvoAgentBench/         # Agent self-evolution evaluation
+├── methods/                   # Memory architectures
+│   ├── EverCore/              # Long-term memory operating system
+│   └── HyperMem/              # Hypergraph memory architecture
+└── use-cases/                 # Templates to plug the core into
+    ├── openher/               # OpenHer — AI companion with memory
+    ├── claude-code-plugin/    # Claude Code Plugin — memory-enhanced code plugin
+    ├── game-of-throne-demo/   # Game of Thrones Demo — a memory-enabled game
+    ├── ...
+    └── ...
 ```
 
 <br>
 
 ## Methods
 
-Methods are production-ready memory architectures that give agents persistent, structured long-term memory. Each can be used standalone or composed together depending on your use case.
+Methods are memory architectures you can choose from — production-ready implementations that give agents persistent, structured long-term memory. Pick the one that fits your use case, or compose them together.
+
+Full benchmark numbers live in the [Evaluation & Benchmarking](#evaluation--benchmarking) section and in each method's paper.
 
 <table>
 <tr>
 <td width="50%" valign="top">
 
-![banner-gif](https://github.com/user-attachments/assets/1bbead72-7a6b-4b19-88f2-5bfc8433e3aa)
+<!-- ![banner-gif](https://github.com/user-attachments/assets/1bbead72-7a6b-4b19-88f2-5bfc8433e3aa) -->
 
 
 #### EverCore
 
 A self-organizing memory operating system inspired by biological imprinting. Extracts, structures, and retrieves long-term knowledge from conversations — enabling agents to remember, understand, and continuously evolve.
 
-[Paper](https://arxiv.org/abs/2601.02163) · [Docs](methods/evermemos/)
+LoCoMo **93.05%** · LongMemEval **83.00%**
+
+[Paper](https://arxiv.org/abs/2601.02163) · [Docs](methods/EverCore/)
 
 </td>
 <td width="50%" valign="top">
 
-![banner-gif](https://github.com/user-attachments/assets/b63d8735-ea94-4ed6-9c0c-a11b55b1a2a4)
+<!-- ![banner-gif](https://github.com/user-attachments/assets/b63d8735-ea94-4ed6-9c0c-a11b55b1a2a4) -->
 
 #### HyperMem
 
-A hypergraph-based hierarchical memory architecture that captures high-order associations through hyperedges. Organizes memory into topic, event, and fact layers for coarse-to-fine long-term conversation retrieval. LoCoMo 92.73%.
+A hypergraph-based hierarchical memory architecture that captures high-order associations through hyperedges. Organizes memory into topic, event, and fact layers for coarse-to-fine long-term conversation retrieval.
+
+LoCoMo **92.73%**
 
 [Paper](https://arxiv.org/abs/2604.08256) · [Docs](methods/HyperMem/)
 
@@ -91,7 +114,7 @@ Benchmarks are designed as **open public standards**. Any memory architecture or
 <tr>
 <td width="50%" valign="top">
 
-![banner-gif](https://github.com/user-attachments/assets/f6f11c3c-7977-4c3b-8c2b-f7cf13e8f93a)
+<!-- ![banner-gif](https://github.com/user-attachments/assets/f6f11c3c-7977-4c3b-8c2b-f7cf13e8f93a) -->
 
 #### EverMemBench
 
@@ -102,7 +125,7 @@ Three-layer memory quality evaluation: factual recall, applied reasoning, and pe
 </td>
 <td width="50%" valign="top">
 
-![banner-gif](https://github.com/user-attachments/assets/79fd03fe-cd6d-4b92-88d7-d66886d31799)
+<!-- ![banner-gif](https://github.com/user-attachments/assets/79fd03fe-cd6d-4b92-88d7-d66886d31799) -->
 
 #### EvoAgentBench
 
@@ -153,6 +176,188 @@ Agent self-evolution evaluation — not static snapshots, but longitudinal growt
 
 </div> -->
 
+## Quick Start
+
+```bash
+git clone https://github.com/EverMind-AI/EverOS.git
+cd EverOS
+```
+
+Then navigate to the component you need:
+
+| | Component | Entry Point |
+| :-- | :--- | :--- |
+| **EverCore** | Build agents with long-term memory | [methods/EverCore/](methods/EverCore/) |
+| **HyperMem** | Use the hypergraph memory architecture | [methods/HyperMem/](methods/HyperMem/) |
+| **EverMemBench** | Evaluate memory system quality | [benchmarks/EverMemBench/](benchmarks/EverMemBench/) |
+| **EvoAgentBench** | Measure agent self-evolution | [benchmarks/EvoAgentBench/](benchmarks/EvoAgentBench/) |
+
+> Each component has its own installation guide, dependency configuration, and usage examples.
+
+### EverCore
+
+```bash
+cd methods/EverCore
+
+# Start Docker services
+docker compose up -d
+
+# Install dependencies
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync
+
+# Configure API keys
+cp env.template .env
+# Edit .env and set:
+#   - LLM_API_KEY (for memory extraction)
+#   - VECTORIZE_API_KEY (for embedding/rerank)
+
+# Start server
+uv run python src/run.py
+
+# Verify installation
+curl http://localhost:1995/health
+# Expected response: {"status": "healthy", ...}
+```
+
+Server runs at `http://localhost:1995` · [Full Setup Guide](docs/installation/SETUP.md)
+
+### Basic Usage
+
+Store and retrieve memories with simple Python code:
+
+```python
+import requests
+
+API_BASE = "http://localhost:1995/api/v1"
+
+# 1. Store a conversation memory
+requests.post(f"{API_BASE}/memories", json={
+    "message_id": "msg_001",
+    "create_time": "2025-02-01T10:00:00+00:00",
+    "sender": "user_001",
+    "content": "I love playing soccer on weekends"
+})
+
+# 2. Search for relevant memories
+response = requests.get(f"{API_BASE}/memories/search", json={
+    "query": "What sports does the user like?",
+    "user_id": "user_001",
+    "memory_types": ["episodic_memory"],
+    "retrieve_method": "hybrid"
+})
+
+result = response.json().get("result", {})
+for memory_group in result.get("memories", []):
+    print(f"Memory: {memory_group}")
+```
+
+[More Examples](docs/usage/USAGE_EXAMPLES.md) · [API Reference](https://docs.evermind.ai/api-reference/introduction) · [Interactive Demos](docs/usage/DEMOS.md)
+
+<br>
+<div align="right">
+
+[![](https://img.shields.io/badge/-Back_to_top-gray?style=flat-square)](#readme-top)
+
+</div>
+
+<!-- ## Demo
+
+### Run the Demo
+
+```bash
+# Terminal 1: Start the API server
+uv run python src/run.py
+
+# Terminal 2: Run the simple demo
+uv run python src/bootstrap.py demo/simple_demo.py
+```
+
+**Try it now**: Follow the [Demo Guide](docs/usage/DEMOS.md) for step-by-step instructions.
+
+### Full Demo Experience
+
+```bash
+# Extract memories from sample data
+uv run python src/bootstrap.py demo/extract_memory.py
+
+# Start interactive chat with memory
+uv run python src/bootstrap.py demo/chat_with_memory.py
+```
+
+See the [Demo Guide](docs/usage/DEMOS.md) for details.
+
+<br>
+<div align="right">
+
+[![](https://img.shields.io/badge/-Back_to_top-gray?style=flat-square)](#readme-top)
+
+</div> -->
+
+## Evaluation & Benchmarking
+
+EverCore achieves **93% overall accuracy** on the LoCoMo benchmark, outperforming comparable memory systems.
+
+### Benchmark Results
+
+![EverOS Benchmark Results](https://github.com/user-attachments/assets/41b656e7-6f82-41b7-891d-d6079d10dd39)
+
+### Supported Benchmarks
+
+- **[LoCoMo](https://github.com/snap-research/locomo)** — Long-context memory benchmark with single/multi-hop reasoning
+- **[LongMemEval](https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned)** — Multi-session conversation evaluation
+- **[PersonaMem](https://huggingface.co/datasets/bowen-upenn/PersonaMem)** — Persona-based memory evaluation
+
+### Run Evaluations
+
+```bash
+# Install evaluation dependencies
+uv sync --group evaluation
+
+# Run smoke test (quick verification)
+uv run python -m evaluation.cli --dataset locomo --system everos --smoke
+
+# Run full evaluation
+uv run python -m evaluation.cli --dataset locomo --system everos
+
+# View results
+cat evaluation/results/locomo-everos/report.txt
+```
+
+[Full Evaluation Guide](evaluation/README.md) · [Complete Results](https://huggingface.co/datasets/EverMind-AI/everos_Eval_Results)
+
+<br>
+<div align="right">
+
+[![](https://img.shields.io/badge/-Back_to_top-gray?style=flat-square)](#readme-top)
+
+</div>
+
+<!-- ## Documentation
+
+| Guide | Description |
+| ----- | ----------- |
+| [Quick Start](docs/dev_docs/getting_started.md) | Installation and configuration |
+| [Configuration Guide](docs/usage/CONFIGURATION_GUIDE.md) | Environment variables and services |
+| [API Usage Guide](docs/dev_docs/api_usage_guide.md) | Endpoints and data formats |
+| [Development Guide](docs/dev_docs/development_guide.md) | Architecture and best practices |
+| [Memory API](docs/api_docs/memory_api.md) | Complete API reference |
+| [Demo Guide](demo/README.md) | Interactive examples |
+| [Evaluation Guide](evaluation/README.md) | Benchmark testing |
+
+### Advanced Techniques
+
+- **[Group Chat Conversations](docs/advanced/GROUP_CHAT_GUIDE.md)** — Combine messages from multiple speakers
+- **[Conversation Metadata Control](docs/advanced/METADATA_CONTROL.md)** — Fine-grained control over conversation context
+- **[Memory Retrieval Strategies](docs/advanced/RETRIEVAL_STRATEGIES.md)** — Lightweight vs Agentic retrieval modes
+- **[Batch Operations](docs/usage/BATCH_OPERATIONS.md)** — Process multiple messages efficiently
+
+<br>
+<div align="right">
+
+[![](https://img.shields.io/badge/-Back_to_top-gray?style=flat-square)](#readme-top)
+
+</div> -->
 ## Use Cases
 
 <table>
@@ -283,222 +488,6 @@ Visualize your stored entities and how they relate. Pure frontend demo — backe
 
 </div>
 
-## Quick Start
-
-```bash
-git clone https://github.com/EverMind-AI/EverOS.git
-cd EverOS
-```
-
-Then navigate to the component you need:
-
-| | Component | Entry Point |
-| :-- | :--- | :--- |
-| **EverCore** | Build agents with long-term memory | [methods/everos/](methods/everos/) |
-| **HyperMem** | Use the hypergraph memory architecture | [methods/HyperMem/](methods/HyperMem/) |
-| **EverMemBench** | Evaluate memory system quality | [benchmarks/EverMemBench/](benchmarks/EverMemBench/) |
-| **EvoAgentBench** | Measure agent self-evolution | [benchmarks/EvoAgentBench/](benchmarks/EvoAgentBench/) |
-
-> Each component has its own installation guide, dependency configuration, and usage examples.
-
-### EverCore Quick Start
-
-```bash
-cd methods/evermemos
-
-# Start Docker services
-docker compose up -d
-
-# Install dependencies
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv sync
-
-# Configure API keys
-cp env.template .env
-# Edit .env and set:
-#   - LLM_API_KEY (for memory extraction)
-#   - VECTORIZE_API_KEY (for embedding/rerank)
-
-# Start server
-uv run python src/run.py
-
-# Verify installation
-curl http://localhost:1995/health
-# Expected response: {"status": "healthy", ...}
-```
-
-Server runs at `http://localhost:1995` · [Full Setup Guide](docs/installation/SETUP.md)
-
-### Basic Usage
-
-Store and retrieve memories with simple Python code:
-
-```python
-import requests
-
-API_BASE = "http://localhost:1995/api/v1"
-
-# 1. Store a conversation memory
-requests.post(f"{API_BASE}/memories", json={
-    "message_id": "msg_001",
-    "create_time": "2025-02-01T10:00:00+00:00",
-    "sender": "user_001",
-    "content": "I love playing soccer on weekends"
-})
-
-# 2. Search for relevant memories
-response = requests.get(f"{API_BASE}/memories/search", json={
-    "query": "What sports does the user like?",
-    "user_id": "user_001",
-    "memory_types": ["episodic_memory"],
-    "retrieve_method": "hybrid"
-})
-
-result = response.json().get("result", {})
-for memory_group in result.get("memories", []):
-    print(f"Memory: {memory_group}")
-```
-
-[More Examples](docs/usage/USAGE_EXAMPLES.md) · [API Reference](https://docs.evermind.ai/api-reference/introduction) · [Interactive Demos](docs/usage/DEMOS.md)
-
-<br>
-<div align="right">
-
-[![](https://img.shields.io/badge/-Back_to_top-gray?style=flat-square)](#readme-top)
-
-</div>
-
-<!-- ## Demo
-
-### Run the Demo
-
-```bash
-# Terminal 1: Start the API server
-uv run python src/run.py
-
-# Terminal 2: Run the simple demo
-uv run python src/bootstrap.py demo/simple_demo.py
-```
-
-**Try it now**: Follow the [Demo Guide](docs/usage/DEMOS.md) for step-by-step instructions.
-
-### Full Demo Experience
-
-```bash
-# Extract memories from sample data
-uv run python src/bootstrap.py demo/extract_memory.py
-
-# Start interactive chat with memory
-uv run python src/bootstrap.py demo/chat_with_memory.py
-```
-
-See the [Demo Guide](docs/usage/DEMOS.md) for details.
-
-<br>
-<div align="right">
-
-[![](https://img.shields.io/badge/-Back_to_top-gray?style=flat-square)](#readme-top)
-
-</div> -->
-
-## Evaluation & Benchmarking
-
-EverCore achieves **93% overall accuracy** on the LoCoMo benchmark, outperforming comparable memory systems.
-
-### Benchmark Results
-
-![EverOS Benchmark Results](https://github.com/user-attachments/assets/824ac1a6-4bf2-4019-9316-ea7ba7d03142)
-
-### Supported Benchmarks
-
-- **[LoCoMo](https://github.com/snap-research/locomo)** — Long-context memory benchmark with single/multi-hop reasoning
-- **[LongMemEval](https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned)** — Multi-session conversation evaluation
-- **[PersonaMem](https://huggingface.co/datasets/bowen-upenn/PersonaMem)** — Persona-based memory evaluation
-
-### Run Evaluations
-
-```bash
-# Install evaluation dependencies
-uv sync --group evaluation
-
-# Run smoke test (quick verification)
-uv run python -m evaluation.cli --dataset locomo --system everos --smoke
-
-# Run full evaluation
-uv run python -m evaluation.cli --dataset locomo --system everos
-
-# View results
-cat evaluation/results/locomo-everos/report.txt
-```
-
-[Full Evaluation Guide](evaluation/README.md) · [Complete Results](https://huggingface.co/datasets/EverMind-AI/everos_Eval_Results)
-
-<br>
-<div align="right">
-
-[![](https://img.shields.io/badge/-Back_to_top-gray?style=flat-square)](#readme-top)
-
-</div>
-
-<!-- ## Documentation
-
-| Guide | Description |
-| ----- | ----------- |
-| [Quick Start](docs/dev_docs/getting_started.md) | Installation and configuration |
-| [Configuration Guide](docs/usage/CONFIGURATION_GUIDE.md) | Environment variables and services |
-| [API Usage Guide](docs/dev_docs/api_usage_guide.md) | Endpoints and data formats |
-| [Development Guide](docs/dev_docs/development_guide.md) | Architecture and best practices |
-| [Memory API](docs/api_docs/memory_api.md) | Complete API reference |
-| [Demo Guide](demo/README.md) | Interactive examples |
-| [Evaluation Guide](evaluation/README.md) | Benchmark testing |
-
-### Advanced Techniques
-
-- **[Group Chat Conversations](docs/advanced/GROUP_CHAT_GUIDE.md)** — Combine messages from multiple speakers
-- **[Conversation Metadata Control](docs/advanced/METADATA_CONTROL.md)** — Fine-grained control over conversation context
-- **[Memory Retrieval Strategies](docs/advanced/RETRIEVAL_STRATEGIES.md)** — Lightweight vs Agentic retrieval modes
-- **[Batch Operations](docs/usage/BATCH_OPERATIONS.md)** — Process multiple messages efficiently
-
-<br>
-<div align="right">
-
-[![](https://img.shields.io/badge/-Back_to_top-gray?style=flat-square)](#readme-top)
-
-</div> -->
-
-<!-- ## GitHub Codespaces
-
-EverOS supports [GitHub Codespaces](https://github.com/features/codespaces) for cloud-based development — no Docker setup or local environment configuration needed.
-
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/EverMind-AI/EverOS)
-
-| Machine Type | Status | Notes |
-| ------------ | ------ | ----- |
-| 2-core (Free tier) | Not supported | Insufficient resources for infrastructure services |
-| 4-core | Minimum | Works but may be slow under load |
-| 8-core | Recommended | Good performance with all services |
-| 16-core+ | Optimal | Best for heavy development workloads |
-
-> **Note:** If your company provides GitHub Codespaces, hardware limitations typically will not be an issue since enterprise plans often include access to larger machine types.
-
-### Getting Started with Codespaces
-
-1. Click the "Open in GitHub Codespaces" button above
-2. Select a **4-core or larger** machine when prompted
-3. Wait for the container to build and services to start
-4. Update API keys in `.env` (`LLM_API_KEY`, `VECTORIZE_API_KEY`, etc.)
-5. Run `make run` to start the server
-
-All infrastructure services (MongoDB, Elasticsearch, Milvus, Redis) start automatically and are pre-configured to work together.
-
-<br>
-<div align="right">
-
-[![](https://img.shields.io/badge/-Back_to_top-gray?style=flat-square)](#readme-top)
-
-</div> -->
-
-
 ## Citation
 
 If EverOS helps your research, please cite:
@@ -570,14 +559,14 @@ We love open-source energy! Whether you are squashing bugs, shipping features, s
 
 ### Contribution Guidelines
 
-Read our [Contribution Guidelines](methods/evermemos/CONTRIBUTING.md) for code standards and Git workflow.
+Read our [Contribution Guidelines](methods/EverCore/CONTRIBUTING.md) for code standards and Git workflow.
 
 ![divider](https://github.com/user-attachments/assets/2e2bbcc6-e6d8-4227-83c6-0620fc96f761#gh-light-mode-only)
 ![divider](https://github.com/user-attachments/assets/d57fad08-4f49-4a1c-bdfc-f659a5d86150#gh-dark-mode-only)
 
 ### License & Citation & Acknowledgments
 
-[Apache 2.0](https://github.com/EverMind-AI/EverOS/blob/main/LICENSE) • [Acknowledgments](methods/evermemos/docs/ACKNOWLEDGMENTS.md)
+[Apache 2.0](https://github.com/EverMind-AI/EverOS/blob/main/LICENSE) • [Acknowledgments](methods/EverCore/docs/ACKNOWLEDGMENTS.md)
 
 <br>
 
