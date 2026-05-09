@@ -3,10 +3,6 @@
 ![banner-gif](https://github.com/user-attachments/assets/0bf97efd-580f-4a53-a2a2-58d6daea7290)
 
 <p align="center">
-  <!-- <a href="https://arxiv.org/abs/2601.02163"><img src="https://img.shields.io/badge/arXiv-EverMemOS-F5C842?labelColor=gray&style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv: EverMemOS"></a> -->
-  <!-- <a href="https://arxiv.org/abs/2604.08256"><img src="https://img.shields.io/badge/arXiv-HyperMem-F5C842?labelColor=gray&style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv: HyperMem"></a> -->
-  <!-- <a href="https://arxiv.org/abs/2602.01313"><img src="https://img.shields.io/badge/arXiv-EverMemBench-F5C842?labelColor=gray&style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv: EverMemBench"></a> -->
-  <!-- <a href="https://github.com/EverMind-AI/MSA"><img src="https://img.shields.io/badge/arXiv-Memory%20Sparse%20Attention-F5C842?labelColor=gray&style=flat-square&logo=arxiv&logoColor=white" alt="arXiv: Memory Sparse Attention"></a> -->
   <a href="https://x.com/evermind"><img src="https://img.shields.io/badge/EverMind-000000?labelColor=gray&style=for-the-badge&logo=x&logoColor=white" alt="X"></a>
   <a href="https://huggingface.co/EverMind-AI"><img src="https://img.shields.io/badge/🤗_HuggingFace-EverMind-F5C842?labelColor=gray&style=for-the-badge" alt="HuggingFace"></a>
   <a href="https://discord.gg/gYep5nQRZJ"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Fv10%2Finvites%2FgYep5nQRZJ%3Fwith_counts%3Dtrue&query=%24.approximate_presence_count&suffix=%20online&label=Discord&color=404EED&labelColor=gray&style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
@@ -43,13 +39,13 @@
 
 ## Project Overview
 
-**EverOS** is a unified home for building, evaluating, and applying long-term memory in self-evolving agents. The repository is organized around three essential parts:
+**EverOS** is a unified home for applying, building, and evaluating long-term memory in self-evolving agents. The repository is organized around three essential parts:
 
 | Part | What it gives you | Start here |
 | :--- | :--- | :--- |
+| **Use cases** | Apps, demos, and integrations showing how memory changes real agent workflows. | [use-cases/](use-cases/) |
 | **Architecture methods** | Memory systems and algorithms you can run, extend, or compare. | [methods/](methods/) |
 | **Benchmarks** | Open evaluation suites for memory quality and agent self-evolution. | [benchmarks/](benchmarks/) |
-| **Use cases** | Apps, demos, and integrations showing how memory changes real agent workflows. | [use-cases/](use-cases/) |
 
 At the center of EverOS is **EverCore**, a long-term memory operating system for agents. If you are new to the project, scan the use cases first to see what memory enables, then follow the [Quick Start](#quick-start) to run EverCore locally. The architecture and benchmark sections below give you the deeper reference material when you are ready to compare systems or reproduce results.
 
@@ -116,7 +112,7 @@ Build AI that feels. Open-source persona engine — personality emerges from neu
 
 #### Browser Agent for Personal Memory
 
-Earth Online is a memory-aware productivity game that turns everyday planning into a living quest log.
+Ruminer brings persistent memory to a browser agent so it can carry personal context across web tasks.
 
 [Plugin](https://chromewebstore.google.com/detail/ruminer-browser-agent/lbccjohfpdpimbhpckljimgolndfmfif)
 
@@ -187,38 +183,42 @@ An iOS sci-fi mystery game where players explore and uncover the truth.
 <tr>
 <td width="50%" valign="top">
 
-![banner-gif](https://github.com/user-attachments/assets/e6eaf308-a874-483f-8874-6934bf95a78f)
+[![banner-gif](https://github.com/user-attachments/assets/e6eaf308-a874-483f-8874-6934bf95a78f)](https://github.com/elontusk5219-prog/Mobi)
 
 #### Mobi Companion
 
 An iOS app where users create, nurture, and live with a personalized AI companion called Mobi.
 
+[Code](https://github.com/elontusk5219-prog/Mobi)
+
 </td>
 <td width="50%" valign="top">
 
-![banner-gif](https://github.com/user-attachments/assets/9aabcaa9-f97a-49d2-9109-0b5bb696ed41)
+[![banner-gif](https://github.com/user-attachments/assets/9aabcaa9-f97a-49d2-9109-0b5bb696ed41)](https://github.com/JaMesLiMers/EvermemCompetition-Spiro)
 
 #### AI Wearable with Memory
 
 A context-native AI wearable that listens to everyday life and converts conversations into memory.
+
+[Code](https://github.com/JaMesLiMers/EvermemCompetition-Spiro)
 
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
 
-![banner-gif](https://github.com/user-attachments/assets/df9677ec-386f-4c56-a428-08bca25c54dc)
+[![banner-gif](https://github.com/user-attachments/assets/df9677ec-386f-4c56-a428-08bca25c54dc)](https://github.com/EverMind-AI/everos/tree/agent_memory/everos-openclaw-plugin)
 
 #### OpenClaw Agent Memory
 
 A 24/7 agent workflow with continuous learning memory across sessions.
 
-[Agent Memory](https://github.com/EverMind-AI/everos/tree/agent_memory) · [Plugin](https://github.com/EverMind-AI/everos/tree/agent_memory/everos-openclaw-plugin)
+[Plugin](https://github.com/EverMind-AI/everos/tree/agent_memory/everos-openclaw-plugin)
 
 </td>
 <td width="50%" valign="top">
 
-![banner-gif](https://github.com/user-attachments/assets/3a2357a1-c0c3-464a-8979-0d1cdfc9b0d4)
+[![banner-gif](https://github.com/user-attachments/assets/3a2357a1-c0c3-464a-8979-0d1cdfc9b0d4)](https://github.com/TEN-framework/ten-framework/tree/main/ai_agents/agents/examples/voice-assistant-with-everos)
 
 #### Live2D Character with Memory
 
@@ -231,7 +231,7 @@ Add long-term memory to a real-time Live2D character, powered by [TEN Framework]
 <tr>
 <td width="50%" valign="top">
 
-![banner-gif](https://github.com/user-attachments/assets/c36bdc04-97d3-4fe9-97d9-4b93b475595a)
+[![banner-gif](https://github.com/user-attachments/assets/c36bdc04-97d3-4fe9-97d9-4b93b475595a)](https://screenshot-analysis-vercel.vercel.app/)
 
 #### Computer-Use with Memory
 
@@ -242,7 +242,7 @@ Run screenshot-based analysis with computer-use and store the results in memory.
 </td>
 <td width="50%" valign="top">
 
-![banner-gif](https://github.com/user-attachments/assets/54a7cf8f-62c4-4fbc-9d50-b214d034e051)
+[![banner-gif](https://github.com/user-attachments/assets/54a7cf8f-62c4-4fbc-9d50-b214d034e051)](use-cases/game-of-throne-demo)
 
 #### Game of Thrones Memories
 
@@ -255,7 +255,7 @@ A demonstration of AI memory infrastructure through an interactive Q&A experienc
 <tr>
 <td width="50%" valign="top">
 
-![banner-gif](https://github.com/user-attachments/assets/af37c1f6-7ba5-430c-b99d-2a7e7eac618f)
+[![banner-gif](https://github.com/user-attachments/assets/af37c1f6-7ba5-430c-b99d-2a7e7eac618f)](use-cases/claude-code-plugin)
 
 #### Claude Code Plugin
 
@@ -266,7 +266,7 @@ Persistent memory for Claude Code. Automatically saves and recalls context from 
 </td>
 <td width="50%" valign="top">
 
-![banner-gif](https://github.com/user-attachments/assets/d521d28c-0ccd-44ff-aecc-828245e2f973)
+[![banner-gif](https://github.com/user-attachments/assets/d521d28c-0ccd-44ff-aecc-828245e2f973)](https://main.d2j21qxnymu6wl.amplifyapp.com/graph.html)
 
 #### Memory Graph Visualization
 
@@ -381,8 +381,6 @@ These are the memory architectures currently included in EverOS. Use them as run
 <tr>
 <td width="50%" valign="top">
 
-<!-- ![banner-gif](https://github.com/user-attachments/assets/1bbead72-7a6b-4b19-88f2-5bfc8433e3aa) -->
-
 ### EverCore
 
 A self-organizing memory operating system inspired by biological imprinting. Extracts, structures, and retrieves long-term knowledge from conversations so agents can remember, understand, and continuously evolve.
@@ -393,8 +391,6 @@ LoCoMo **93.05%** · LongMemEval **83.00%**
 
 </td>
 <td width="50%" valign="top">
-
-<!-- ![banner-gif](https://github.com/user-attachments/assets/b63d8735-ea94-4ed6-9c0c-a11b55b1a2a4) -->
 
 ### HyperMem
 
@@ -423,8 +419,6 @@ These benchmarks provide shared standards for measuring memory quality and agent
 <tr>
 <td width="50%" valign="top">
 
-<!-- ![banner-gif](https://github.com/user-attachments/assets/f6f11c3c-7977-4c3b-8c2b-f7cf13e8f93a) -->
-
 ### EverMemBench
 
 Three-layer memory quality evaluation: factual recall, applied reasoning, and personalized generalization.
@@ -433,8 +427,6 @@ Three-layer memory quality evaluation: factual recall, applied reasoning, and pe
 
 </td>
 <td width="50%" valign="top">
-
-<!-- ![banner-gif](https://github.com/user-attachments/assets/79fd03fe-cd6d-4b92-88d7-d66886d31799) -->
 
 ### EvoAgentBench
 
